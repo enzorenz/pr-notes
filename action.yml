@@ -1,11 +1,17 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'PR Notes'
+description: 'Adds changelog to your pull request'
+author: 'enzorenz'
 inputs:
-  milliseconds: # change this
+  # milliseconds: # change this
+  #   required: true
+  #   description: 'input description here'
+  #   default: 'default value if applicable'
+  source-branch:
+    description: 'Head branch of the pull request'
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+  target-branch: 
+    description: 'Base branch of the pull request'
+    required: true 
 runs:
   using: 'node16'
   main: 'dist/index.js'
