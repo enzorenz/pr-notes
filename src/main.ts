@@ -17,50 +17,52 @@ async function run(): Promise<void> {
     // core.setOutput('time', new Date().toTimeString())
 
     // START
-    const input = new Input()
-    const octokit = github.getOctokit(input.token)
-    const gitUtility = new GitUtility()
-    const prUtility = new PullRequestUtility(octokit)
-    const bodyUtility = new BodyUtility(octokit)
-    // const bodyUtils = new BodyUtils(octokit)
-    const targetBranch = await gitUtility.getTargetBranch(
-      input.targetBranch,
-      octokit
-    )
+    // const input = new Input()
+    // const octokit = github.getOctokit(input.token)
+    // const gitUtility = new GitUtility()
+    // const prUtility = new PullRequestUtility(octokit)
+    // const bodyUtility = new BodyUtility(octokit)
+    // // const bodyUtils = new BodyUtils(octokit)
+    // const targetBranch = await gitUtility.getTargetBranch(
+    //   input.targetBranch,
+    //   octokit
+    // )
 
-    core.startGroup('Checks')
-    core.info('🔍 Checking if branches exists...')
-    const isSourceBranchExists = await gitUtility.branchExists(
-      input.sourceBranch
-    )
-    if (!isSourceBranchExists) {
-      core.setFailed(`Source branch '${input.sourceBranch}' does not exist!`)
-    }
-    core.info(`Source branch: "${input.sourceBranch}" exists.`)
-    const isTargetBranchExists = await gitUtility.branchExists(targetBranch)
-    if (!isTargetBranchExists) {
-      core.setFailed(`💥 Target branch '${targetBranch}' does not exist!`)
-    }
-    core.info(`Target branch: "${input.targetBranch}" exists.`)
+    // core.startGroup('Checks')
+    // core.info('🔍 Checking if branches exists...')
+    // const isSourceBranchExists = await gitUtility.branchExists(
+    //   input.sourceBranch
+    // )
+    // if (!isSourceBranchExists) {
+    //   core.setFailed(`Source branch '${input.sourceBranch}' does not exist!`)
+    // }
+    // core.info(`Source branch: "${input.sourceBranch}" exists.`)
+    // const isTargetBranchExists = await gitUtility.branchExists(targetBranch)
+    // if (!isTargetBranchExists) {
+    //   core.setFailed(`💥 Target branch '${targetBranch}' does not exist!`)
+    // }
+    // core.info(`Target branch: "${input.targetBranch}" exists.`)
 
-    core.info(
-      '🔍 Checking if there is an open PR for the source to target branch...'
-    )
-    const prNumber = await prUtility.getNumber(targetBranch, input.sourceBranch)
+    // core.info(
+    //   '🔍 Checking if there is an open PR for the source to target branch...'
+    // )
+    // const prNumber = await prUtility.getNumber(targetBranch, input.sourceBranch)
 
-    core.info(`PR is: ${prNumber}`)
+    // core.info(`PR is: ${prNumber}`)
 
-    const body = await bodyUtility.compose(
-      input.sourceBranch,
-      input.targetBranch
-    )
+    // const body = await bodyUtility.compose(
+    //   input.sourceBranch,
+    //   input.targetBranch
+    // )
 
-    if (prNumber) {
-      const pull = await prUtility.update(prNumber, 'TEST', body)
-      core.info(`🎉 Pull Request updated: ${pull.html_url} (#${pull.number})`)
-      core.setOutput('pr_nr', pull.number)
-    }
-    core.endGroup()
+    // if (prNumber) {
+    //   const pull = await prUtility.update(prNumber, 'TEST', body)
+    //   core.info(`🎉 Pull Request updated: ${pull.html_url} (#${pull.number})`)
+    //   core.setOutput('pr_nr', pull.number)
+    // }
+    // core.endGroup()
+
+    core.info('HELLO WORLD!!!!')
 
     // core.startGroup('PR')
     // if (pullRequestNr) {
