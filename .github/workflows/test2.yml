@@ -1,0 +1,27 @@
+name: 'pr-test'
+on: # rebuild any PRs and main branch changes
+  push:
+    branches:
+      - test-only
+  workflow_dispatch:
+    source-branch:
+      description: 'Head branch of the pull request'
+      required: true
+    target-branch: 
+      description: 'Base branch of the pull request'
+      required: true 
+    resolve-line-keyword: 
+      description: 'Keyword for detecting the resolve line to retrieve related issue/link (case insensitive)'
+      default: 'resolves'
+      required: false 
+
+jobs:
+  pr-test: # make sure the action works on a clean machine without building
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          source-branch: test-only
+          target-branch: main
