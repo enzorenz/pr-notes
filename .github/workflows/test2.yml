@@ -1,0 +1,19 @@
+name: 'pr-test'
+on: # rebuild any PRs and main branch changes
+  push:
+    branches:
+      - test-only
+
+jobs:
+  pr-test: # make sure the action works on a clean machine without building
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          source-branch: test-only
+          target-branch: main
+          title: TEST PR ONLY (created by action)
+          body: This is a body
+          list-title: Changelog
