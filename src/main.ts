@@ -1,16 +1,79 @@
 import * as core from '@actions/core'
-import {wait} from './wait'
+import * as github from '@actions/github'
+
+import {Input} from './models'
+import {PullRequestUtility, GitUtility, BodyUtility} from './utilities'
 
 async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
-    core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
+    // START
+    const input = new Input()
+    const octokit = github.getOctokit(input.token)
+    const gitUtility = new GitUtility()
+    const prUtility = new PullRequestUtility(octokit)
+    const bodyUtility = new BodyUtility(octokit)
+    const targetBranch = await gitUtility.getTargetBranch(
+      input.targetBranch,
+      octokit
+    )
 
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+    core.startGroup('Prerequisite Checks')
+    core.info('🔍 Checking if branches exists...')
+    const isSourceBranchExists = await gitUtility.branchExists(
+      input.sourceBranch
+    )
+    if (!isSourceBranchExists) {
+      core.setFailed(`Source branch '${input.sourceBranch}' does not exist!`)
+    }
+    core.info(`Source branch: "${input.sourceBranch}" exists.`)
+    const isTargetBranchExists = await gitUtility.branchExists(targetBranch)
+    if (!isTargetBranchExists) {
+      core.setFailed(`💥 Target branch '${targetBranch}' does not exist!`)
+    }
+    core.info(`Target branch: "${input.targetBranch}" exists.`)
 
-    core.setOutput('time', new Date().toTimeString())
+    core.info(
+      '🔍 Checking if there is an open PR for the source to target branch...'
+    )
+    const prNumber = await prUtility.getNumber(targetBranch, input.sourceBranch)
+
+    if (prNumber) {
+      core.info(`PR# ${prNumber} exists.`)
+    } else {
+      core.info(`PR does not exist yet.`)
+    }
+    core.endGroup()
+
+    core.startGroup('Pull Request Processing')
+    const body = await bodyUtility.compose(
+      input.sourceBranch,
+      input.targetBranch,
+      input.body,
+      input.resolveLineKeyword,
+      input.listTitle
+    )
+
+    if (prNumber) {
+      core.info('Updating Pull Request...')
+      const pull = await prUtility.update(prNumber, body)
+      core.info(`🎉 Pull Request updated: ${pull.html_url} (#${pull.number})`)
+      core.setOutput('pr-number', pull.number)
+    } else {
+      core.info('Creating new Pull Request...')
+      const pull = await prUtility.create(
+        targetBranch,
+        input.sourceBranch,
+        input.draft,
+        input.title,
+        body,
+        input.labels,
+        input.assignees
+      )
+      const prNumber = pull.number
+      core.info(`🎉 Pull Request created: ${pull.html_url} (#${prNumber})`)
+      core.setOutput('pr-number', prNumber)
+    }
+    core.endGroup()
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message)
   }
