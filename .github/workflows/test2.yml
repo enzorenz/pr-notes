@@ -1,0 +1,18 @@
+name: 'pr-test'
+on: # rebuild any PRs and main branch changes
+  push:
+    branches:
+      - test-only
+
+jobs:
+  pr-test: # make sure the action works on a clean machine without building
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: enzorenz/pr-notes@v1.0.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          source-branch: test-only
+          target-branch: main
+          draft: true
+          title: TEST PR ONLY (created by action)
