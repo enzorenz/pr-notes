@@ -18,7 +18,7 @@ export class Input {
     this.targetBranch = core.getInput('target-branch', {required: true})
     this.draft = (core.getInput('draft') ?? '').toLowerCase() === 'true'
     this.title = core.getInput('title', {required: true})
-    this.body = core.getInput('body', {required: true})
+    this.body = core.getInput('body')
     this.resolveLineKeyword = core.getInput('resolve-line-keyword')
     this.listTitle = core.getInput('list-title')
     this.labels = convertInputToArray('labels')
