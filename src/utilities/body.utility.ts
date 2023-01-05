@@ -123,12 +123,25 @@ export class BodyUtility {
 
         const relatedIssuesFromHashtag =
           resolvesKeywordLine.match(/[^[{()}\]\s]*#\d*/g) ?? []
-        const relatedIssuesFromLink = resolvesKeywordLine.match(urlRegex) ?? []
-        const issues = [...relatedIssuesFromHashtag, ...relatedIssuesFromLink]
+        const relatedIssuesFromLink =
+          resolvesKeywordLine
+            .match(urlRegex)
+            ?.filter(url => url.includes('issues/')) ?? []
+        const issues = [
+          ...relatedIssuesFromHashtag,
+          ...this.formatIssueLinksToHashtag(relatedIssuesFromLink)
+        ]
         prUrlWithIssues.set(entry.html_url, [...new Set(issues)])
       }
     }
 
     return prUrlWithIssues
+  }
+
+  private formatIssueLinksToHashtag(links: string[]) {
+    return links.map(link => {
+      const issue = link.match(/issues\/\d*/) ?? []
+      return '#' + issue[0]?.split('/')[1] ?? ''
+    })
   }
 }
