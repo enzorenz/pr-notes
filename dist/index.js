@@ -154,7 +154,7 @@ class Input {
         this.targetBranch = core.getInput('target-branch', { required: true });
         this.draft = ((_a = core.getInput('draft')) !== null && _a !== void 0 ? _a : '').toLowerCase() === 'true';
         this.title = core.getInput('title', { required: true });
-        this.body = core.getInput('body', { required: true });
+        this.body = core.getInput('body');
         this.resolveLineKeyword = core.getInput('resolve-line-keyword');
         this.listTitle = core.getInput('list-title');
         this.labels = convertInputToArray('labels');
@@ -271,7 +271,7 @@ class BodyUtility {
         });
     }
     fetchPrUrlWithIssues(commitShas, resolveLineKeyword) {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e;
         return __awaiter(this, void 0, void 0, function* () {
             core.debug(`Fetching associated pull request's link and related issues of commit shas: ${commitShas.toString()}`);
             const prUrlWithIssues = new Map();
@@ -285,12 +285,23 @@ class BodyUtility {
                     const bodyLines = entryBody.split('\n');
                     const resolvesKeywordLine = (_b = bodyLines.find(line => line.toLowerCase().includes(resolveLineKeyword))) !== null && _b !== void 0 ? _b : '';
                     const relatedIssuesFromHashtag = (_c = resolvesKeywordLine.match(/[^[{()}\]\s]*#\d*/g)) !== null && _c !== void 0 ? _c : [];
-                    const relatedIssuesFromLink = (_d = resolvesKeywordLine.match(urlRegex)) !== null && _d !== void 0 ? _d : [];
-                    const issues = [...relatedIssuesFromHashtag, ...relatedIssuesFromLink];
+                    const relatedIssuesFromLink = (_e = (_d = resolvesKeywordLine
+                        .match(urlRegex)) === null || _d === void 0 ? void 0 : _d.filter(url => url.includes('issues/'))) !== null && _e !== void 0 ? _e : [];
+                    const issues = [
+                        ...relatedIssuesFromHashtag,
+                        ...this.formatIssueLinksToHashtag(relatedIssuesFromLink)
+                    ];
                     prUrlWithIssues.set(entry.html_url, [...new Set(issues)]);
                 }
             }
             return prUrlWithIssues;
+        });
+    }
+    formatIssueLinksToHashtag(links) {
+        return links.map(link => {
+            var _a, _b, _c;
+            const issue = (_a = link.match(/issues\/\d*/)) !== null && _a !== void 0 ? _a : [];
+            return (_c = '#' + ((_b = issue[0]) === null || _b === void 0 ? void 0 : _b.split('/')[1])) !== null && _c !== void 0 ? _c : '';
         });
     }
 }
