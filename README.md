@@ -1,105 +1,122 @@
-<p align="center">
-  <a href="https://github.com/actions/typescript-action/actions"><img alt="typescript-action status" src="https://github.com/actions/typescript-action/workflows/build-test/badge.svg"></a>
-</p>
+# PR Notes
 
-# Create a JavaScript Action using TypeScript
+This action adds changelog to your pull request. It creates a pull request if it does not exist and fails silently if already exists, it will also update the existing pull request body.
 
-Use this template to bootstrap the creation of a TypeScript action.:rocket:
+If associated pull request is a resolution to an issue then that issue will be the main item to the changelog list while the pull request will be included as its sub item.
 
-This template includes compilation support, tests, a validation workflow, publishing, and versioning guidance.  
+### Auto Generated Body
 
-If you are new, there's also a simpler introduction.  See the [Hello World JavaScript Action](https://github.com/actions/hello-world-javascript-action)
+<img width="689" alt="image" src="https://user-images.githubusercontent.com/42469290/210353553-48bac4f8-8348-4867-b94e-1125bce2cd07.png">
 
-## Create an action from this template
+### Usage
 
-Click the `Use this Template` and provide the new repo details for your action
+Create a workflow
 
-## Code in Main
+```
+name: 'your-workflow-name'
+on:
+  push:
+    branches:
+      - main
 
-> First, you'll need to have a reasonably modern version of `node` handy. This won't work with versions older than 9, for instance.
-
-Install the dependencies  
-```bash
-$ npm install
+jobs:
+  your-job-name
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: enzorenz/pr-notes@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          source-branch: test-branch
+          target-branch: main
+          draft: true
+          title: YOUR PR TITLE
+          body: This is a body
+          list-title: Changelog
 ```
 
-Build the typescript and package it for distribution
-```bash
-$ npm run build && npm run package
-```
+### Inputs
 
-Run the tests :heavy_check_mark:  
-```bash
-$ npm test
-
- PASS  ./index.test.js
-  ✓ throws invalid number (3ms)
-  ✓ wait 500 ms (504ms)
-  ✓ test runs (95ms)
-
-...
-```
-
-## Change action.yml
-
-The action.yml defines the inputs and output for your action.
-
-Update the action.yml with your name, description, inputs and outputs for your action.
-
-See the [documentation](https://help.github.com/en/articles/metadata-syntax-for-github-actions)
-
-## Change the Code
-
-Most toolkit and CI/CD operations involve async operations so the action is run in an async function.
-
-```javascript
-import * as core from '@actions/core';
-...
-
-async function run() {
-  try { 
-      ...
-  } 
-  catch (error) {
-    core.setFailed(error.message);
-  }
-}
-
-run()
-```
-
-See the [toolkit documentation](https://github.com/actions/toolkit/blob/master/README.md#packages) for the various packages.
-
-## Publish to a distribution branch
-
-Actions are run from GitHub repos so we will checkin the packed dist folder. 
-
-Then run [ncc](https://github.com/zeit/ncc) and push the results:
-```bash
-$ npm run package
-$ git add dist
-$ git commit -a -m "prod dependencies"
-$ git push origin releases/v1
-```
-
-Note: We recommend using the `--license` option for ncc, which will create a license file for all of the production node modules used in your project.
-
-Your action is now published! :rocket: 
-
-See the [versioning documentation](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
-
-## Validate
-
-You can now validate the action by referencing `./` in a workflow in your repo (see [test.yml](.github/workflows/test.yml))
-
-```yaml
-uses: ./
-with:
-  milliseconds: 1000
-```
-
-See the [actions tab](https://github.com/actions/typescript-action/actions) for runs of this action! :rocket:
-
-## Usage:
-
-After testing you can [create a v1 tag](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md) to reference the stable and latest V1 action
+<table>
+  <thead>
+    <tr>
+      <th align="center">Name</th>
+      <th align="center">Description</th>
+      <th align="center">Default</th>
+      <th align="center">Required</th>
+      <th align="center">Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center">token</td>
+      <td align="center">GitHub Token to use for this action</td>
+      <td align="center">N/A</td>
+      <td align="center">true</td>
+      <td align="center"><code>${{ secrets.GITHUB_TOKEN }}</code></td>
+    </tr>
+    <tr>
+      <td align="center">source-branch</td>
+      <td align="center">Head branch of the pull request</td>
+      <td align="center">N/A</td>
+      <td align="center">true</td>
+      <td align="center"><code>develop</code></td>
+    </tr>
+    <tr>
+      <td align="center">target-branch</td>
+      <td align="center">Base branch of the pull request</td>
+      <td align="center">N/A</td>
+      <td align="center">true</td>
+      <td align="center"><code>master</code></td>
+    </tr>
+    <tr>
+      <td align="center">draft</td>
+      <td align="center">Set created pull request status to draft</td>
+      <td align="center"><code>false</code></td>
+      <td align="center">false</td>
+      <td align="center"><code>true</code></td>
+    </tr>
+    <tr>
+      <td align="center">title</td>
+      <td align="center">Title for creating pull request (ignored if PR already exists)</td>
+      <td align="center">N/A</td>
+      <td align="center">true</td>
+      <td align="center"><code>Initial Pull Request</code></td>
+    </tr>
+    <tr>
+      <td align="center">body</td>
+      <td align="center">Body for pull request</td>
+      <td align="center">empty</td>
+      <td align="center">false</td>
+      <td align="center"><code>This is a body</code></td>
+    </tr>
+    <tr>
+      <td align="center">resolve-line-keyword</td>
+      <td align="center">Keyword for detecting the resolve line to retrieve related issue/link (case insensitive)</td>
+      <td align="center"><code>resolves</code></td>
+      <td align="center">false</td>
+      <td align="center"><code>resolves</code></td>
+    </tr>
+    <tr>
+      <td align="center">list-title</td>
+      <td align="center">Title for changes list</td>
+      <td align="center">empty</td>
+      <td align="center">false</td>
+      <td align="center"><code>Changelog</code></td>
+    </tr>
+    <tr>
+      <td align="center">labels</td>
+      <td align="center">Labels to add to the PR (comma separated)</td>
+      <td align="center">N/A</td>
+      <td align="center">false</td>
+      <td align="center"><code>test, fix</code></td>
+    </tr>
+    <tr>
+      <td align="center">assignees</td>
+      <td align="center">Assignees to add to the PR (comma separated)</td>
+      <td align="center">N/A</td>
+      <td align="center">false</td>
+      <td align="center"><code>username1, username2</code></td>
+    </tr>
+  </tbody>
+</table>
