@@ -35,6 +35,22 @@ jobs:
           list-title: Changelog
 ```
 
+### Linking Issues
+
+To properly pull the correct issues please link them in resolve keyword line using hash (#), example:
+
+For same repository:
+`Resolves #<issue_number>`
+```
+Resolves #1234
+```
+
+For different repository:
+`Resolves <owner>/<repository_name>#<issue_number>`
+```
+Resolves enzorenz/pr-notes#1234
+```
+
 ### Inputs
 
 <table>
