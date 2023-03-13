@@ -18,7 +18,8 @@ export class BodyUtility {
     targetBranch: string,
     body: string,
     resolveLineKeyword: string,
-    listTitle: string
+    listTitle: string,
+    excludeKeywords: string[]
   ): Promise<string> {
     core.info(
       `Retrieving PR links for all diffs between head ${sourceBranch} and base ${targetBranch}...`
@@ -32,7 +33,8 @@ export class BodyUtility {
     const commitShas = await this.getCommitShas(sourceBranch, targetBranch)
     const prUrlWithIssues = await this.fetchPrUrlWithIssues(
       commitShas,
-      resolveLineKeyword
+      resolveLineKeyword,
+      excludeKeywords
     )
 
     // collect all issues so we can group prs via related issue
@@ -96,7 +98,8 @@ export class BodyUtility {
 
   private async fetchPrUrlWithIssues(
     commitShas: string[],
-    resolveLineKeyword: string
+    resolveLineKeyword: string,
+    excludeKeywords: string[]
   ): Promise<Map<string, string[]>> {
     core.debug(
       `Fetching associated pull request's link and related issues of commit shas: ${commitShas.toString()}`
@@ -111,7 +114,12 @@ export class BodyUtility {
         })
 
       for (const entry of resp.data) {
-        if (entry.state === 'open') {
+        if (
+          entry.state === 'open' ||
+          excludeKeywords.some(keyword =>
+            entry.title.toLowerCase().includes(keyword)
+          )
+        ) {
           continue
         }
         const entryBody = entry.body ?? ''

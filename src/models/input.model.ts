@@ -11,6 +11,7 @@ export class Input {
   listTitle: string
   labels: string[]
   assignees: string[]
+  excludeKeywords: string[]
 
   constructor() {
     this.token = core.getInput('token', {required: true})
@@ -23,6 +24,7 @@ export class Input {
     this.listTitle = core.getInput('list-title')
     this.labels = convertInputToArray('labels')
     this.assignees = convertInputToArray('assignees')
+    this.excludeKeywords = convertInputToArray('exclude-keywords')
 
     core.setSecret(this.token)
   }

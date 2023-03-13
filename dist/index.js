@@ -75,7 +75,7 @@ function run() {
             }
             core.endGroup();
             core.startGroup('Pull Request Processing');
-            const body = yield bodyUtility.compose(input.sourceBranch, input.targetBranch, input.body, input.resolveLineKeyword, input.listTitle);
+            const body = yield bodyUtility.compose(input.sourceBranch, input.targetBranch, input.body, input.resolveLineKeyword, input.listTitle, input.excludeKeywords);
             if (prNumber) {
                 core.info('Updating Pull Request...');
                 const pull = yield prUtility.update(prNumber, body);
@@ -159,6 +159,7 @@ class Input {
         this.listTitle = core.getInput('list-title');
         this.labels = convertInputToArray('labels');
         this.assignees = convertInputToArray('assignees');
+        this.excludeKeywords = convertInputToArray('exclude-keywords');
         core.setSecret(this.token);
     }
 }
@@ -218,7 +219,7 @@ class BodyUtility {
     constructor(octokit) {
         this.octokit = octokit;
     }
-    compose(sourceBranch, targetBranch, body, resolveLineKeyword, listTitle) {
+    compose(sourceBranch, targetBranch, body, resolveLineKeyword, listTitle, excludeKeywords) {
         return __awaiter(this, void 0, void 0, function* () {
             core.info(`Retrieving PR links for all diffs between head ${sourceBranch} and base ${targetBranch}...`);
             let bodyWithChangelog = body !== null && body !== void 0 ? body : '';
@@ -226,7 +227,7 @@ class BodyUtility {
                 bodyWithChangelog += listTitle ? `\n\r### ${listTitle}` : '';
             }
             const commitShas = yield this.getCommitShas(sourceBranch, targetBranch);
-            const prUrlWithIssues = yield this.fetchPrUrlWithIssues(commitShas, resolveLineKeyword);
+            const prUrlWithIssues = yield this.fetchPrUrlWithIssues(commitShas, resolveLineKeyword, excludeKeywords);
             // collect all issues so we can group prs via related issue
             let prLinksObject = {};
             let allIssues = [];
@@ -270,7 +271,7 @@ class BodyUtility {
             return resp.data.commits.map((entry) => entry.sha);
         });
     }
-    fetchPrUrlWithIssues(commitShas, resolveLineKeyword) {
+    fetchPrUrlWithIssues(commitShas, resolveLineKeyword, excludeKeywords) {
         var _a, _b, _c, _d, _e;
         return __awaiter(this, void 0, void 0, function* () {
             core.debug(`Fetching associated pull request's link and related issues of commit shas: ${commitShas.toString()}`);
@@ -278,7 +279,8 @@ class BodyUtility {
             for (const commitSha of commitShas) {
                 const resp = yield this.octokit.rest.repos.listPullRequestsAssociatedWithCommit(Object.assign(Object.assign({}, github.context.repo), { commit_sha: commitSha }));
                 for (const entry of resp.data) {
-                    if (entry.state === 'open') {
+                    if (entry.state === 'open' ||
+                        excludeKeywords.some(keyword => entry.title.toLowerCase().includes(keyword))) {
                         continue;
                     }
                     const entryBody = (_a = entry.body) !== null && _a !== void 0 ? _a : '';

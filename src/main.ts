@@ -50,7 +50,8 @@ async function run(): Promise<void> {
       input.targetBranch,
       input.body,
       input.resolveLineKeyword,
-      input.listTitle
+      input.listTitle,
+      input.excludeKeywords
     )
 
     if (prNumber) {
