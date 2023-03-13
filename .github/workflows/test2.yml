@@ -9,12 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: enzorenz/pr-notes@v1
+      - uses: ./
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           source-branch: test-only
           target-branch: main
           draft: true
           title: TEST PR ONLY (created by action)
-          body: this is a body
-          list-title: Changelog
