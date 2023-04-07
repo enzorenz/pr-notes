@@ -6,7 +6,7 @@ If associated pull request is a resolution to an issue then that issue will be t
 
 ### Auto Generated Body
 
-<img width="689" alt="image" src="https://user-images.githubusercontent.com/42469290/210353553-48bac4f8-8348-4867-b94e-1125bce2cd07.png">
+<img width="689" alt="image" src="https://user-images.githubusercontent.com/42469290/230652349-78011c74-79ac-4d5c-868e-bc301e5fbe16.png">
 
 ### Usage
 
@@ -31,8 +31,8 @@ jobs:
           target-branch: main
           draft: true
           title: YOUR PR TITLE
-          body: This is a body
-          list-title: Changelog
+          commit-type-grouping: true
+          with-author: true
 ```
 
 ### Linking Issues
@@ -41,12 +41,14 @@ To properly pull the correct issues please link them in resolve keyword line usi
 
 For same repository:
 `Resolves #<issue_number>`
+
 ```
 Resolves #1234
 ```
 
 For different repository:
 `Resolves <owner>/<repository_name>#<issue_number>`
+
 ```
 Resolves enzorenz/pr-notes#1234
 ```
@@ -134,5 +136,48 @@ Resolves enzorenz/pr-notes#1234
       <td align="center">false</td>
       <td align="center"><code>username1, username2</code></td>
     </tr>
+    <tr>
+      <td align="center">commit-type-grouping</td>
+      <td align="center">Groups commits by prefixes (feat, fix, docs, etc.), see commit types below</td>
+      <td align="center">false</td>
+      <td align="center">false</td>
+      <td align="center"><code>true</code></td>
+    </tr>
+    <tr>
+      <td align="center">exclude-keywords</td>
+      <td align="center">Exclude PRs with similar keywords (comma separated)</td>
+      <td align="center">N/A</td>
+      <td align="center">false</td>
+      <td align="center"><code>first_keyword, second_keyword</code></td>
+    </tr>
+    <tr>
+      <td align="center">with-author</td>
+      <td align="center">Includes commit author in the list</td>
+      <td align="center">false</td>
+      <td align="center">false</td>
+      <td align="center"><code>true</code></td>
+    </tr>
   </tbody>
 </table>
+
+### Commit Types
+
+```
+{
+  feat: 'Features',
+  fix: 'Bug Fixes',
+  docs: 'Documentation',
+  style: 'Styles',
+  refactor: 'Code Refactoring',
+  perf: 'Performance Improvements',
+  test: 'Tests',
+  build: 'Builds',
+  ci: 'Continuous Integrations',
+  chore: 'Chores',
+  revert: 'Reverts',
+  merge: 'Merges',
+  release: 'Releases',
+  sync: 'Syncs',
+  other: 'Others' // for PR titles that has does not use prefix
+}
+```

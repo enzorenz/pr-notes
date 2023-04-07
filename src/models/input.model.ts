@@ -11,7 +11,9 @@ export class Input {
   listTitle: string
   labels: string[]
   assignees: string[]
+  commitTypeGrouping: boolean
   excludeKeywords: string[]
+  withAuthor: boolean
 
   constructor() {
     this.token = core.getInput('token', {required: true})
@@ -24,7 +26,11 @@ export class Input {
     this.listTitle = core.getInput('list-title')
     this.labels = convertInputToArray('labels')
     this.assignees = convertInputToArray('assignees')
+    this.commitTypeGrouping =
+      (core.getInput('commit-type-grouping') ?? '').toLowerCase() === 'true'
     this.excludeKeywords = convertInputToArray('exclude-keywords')
+    this.withAuthor =
+      (core.getInput('with-author') ?? '').toLowerCase() === 'true'
 
     core.setSecret(this.token)
   }
@@ -35,5 +41,6 @@ function convertInputToArray(
   options?: core.InputOptions
 ): string[] {
   const str = core.getInput(input, options)
-  return (str || null)?.split(',') ?? []
+  const arr = (str || null)?.split(',') ?? []
+  return arr.map(item => item.trim()).filter(item => item.length > 0)
 }

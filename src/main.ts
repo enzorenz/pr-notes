@@ -51,7 +51,9 @@ async function run(): Promise<void> {
       input.body,
       input.resolveLineKeyword,
       input.listTitle,
-      input.excludeKeywords
+      input.excludeKeywords,
+      input.commitTypeGrouping,
+      input.withAuthor
     )
 
     if (prNumber) {
