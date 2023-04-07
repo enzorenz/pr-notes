@@ -36,6 +36,17 @@ inputs:
   assignees:
     description: 'Assignees to add to the PR (comma separated)'
     required: false
+  commit-type-grouping:
+    description: 'Groups commits by prefixes (feat, fix, docs, etc.)'
+    default: 'false'
+    required: false
+  exclude-keywords:
+    description: 'Exclude PRs with similar keywords (comma separated)'
+    required: false
+  with-author:
+    description: 'Includes commit author in the list'
+    default: 'false'
+    required: false
 runs:
   using: 'node16'
   main: 'dist/index.js'
