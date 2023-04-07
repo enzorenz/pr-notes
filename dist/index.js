@@ -1,6 +1,34 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 5105:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.COMMIT_TYPES = void 0;
+exports.COMMIT_TYPES = {
+    feat: 'Features',
+    fix: 'Bug Fixes',
+    docs: 'Documentation',
+    style: 'Styles',
+    refactor: 'Code Refactoring',
+    perf: 'Performance Improvements',
+    test: 'Tests',
+    build: 'Builds',
+    ci: 'Continuous Integrations',
+    chore: 'Chores',
+    revert: 'Reverts',
+    merge: 'Merges',
+    release: 'Releases',
+    sync: 'Syncs',
+    other: 'Others'
+};
+
+
+/***/ }),
+
 /***/ 3109:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -75,7 +103,7 @@ function run() {
             }
             core.endGroup();
             core.startGroup('Pull Request Processing');
-            const body = yield bodyUtility.compose(input.sourceBranch, input.targetBranch, input.body, input.resolveLineKeyword, input.listTitle);
+            const body = yield bodyUtility.compose(input.sourceBranch, input.targetBranch, input.body, input.resolveLineKeyword, input.listTitle, input.excludeKeywords, input.commitTypeGrouping, input.withAuthor);
             if (prNumber) {
                 core.info('Updating Pull Request...');
                 const pull = yield prUtility.update(prNumber, body);
@@ -148,7 +176,7 @@ exports.Input = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 class Input {
     constructor() {
-        var _a;
+        var _a, _b, _c;
         this.token = core.getInput('token', { required: true });
         this.sourceBranch = core.getInput('source-branch', { required: true });
         this.targetBranch = core.getInput('target-branch', { required: true });
@@ -159,6 +187,11 @@ class Input {
         this.listTitle = core.getInput('list-title');
         this.labels = convertInputToArray('labels');
         this.assignees = convertInputToArray('assignees');
+        this.commitTypeGrouping =
+            ((_b = core.getInput('commit-type-grouping')) !== null && _b !== void 0 ? _b : '').toLowerCase() === 'true';
+        this.excludeKeywords = convertInputToArray('exclude-keywords');
+        this.withAuthor =
+            ((_c = core.getInput('with-author')) !== null && _c !== void 0 ? _c : '').toLowerCase() === 'true';
         core.setSecret(this.token);
     }
 }
@@ -166,7 +199,8 @@ exports.Input = Input;
 function convertInputToArray(input, options) {
     var _a, _b;
     const str = core.getInput(input, options);
-    return (_b = (_a = (str || null)) === null || _a === void 0 ? void 0 : _a.split(',')) !== null && _b !== void 0 ? _b : [];
+    const arr = (_b = (_a = (str || null)) === null || _a === void 0 ? void 0 : _a.split(',')) !== null && _b !== void 0 ? _b : [];
+    return arr.map(item => item.trim()).filter(item => item.length > 0);
 }
 
 
@@ -213,12 +247,45 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BodyUtility = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
+const constants_1 = __nccwpck_require__(5105);
 const urlRegex = /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[-;:&=\+\$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=\+\$,\w]+@)[A-Za-z0-9.-]+)((?:\/[\+~%\/.\w-_]*)?\??(?:[-\+=&;%@.\w_]*)#?(?:[\w]*))?)/g;
 class BodyUtility {
     constructor(octokit) {
         this.octokit = octokit;
     }
-    compose(sourceBranch, targetBranch, body, resolveLineKeyword, listTitle) {
+    /**
+     * This function composes a changelog by retrieving PR links and grouping them by related issues or
+     * commit types.
+     * @param {string} sourceBranch - The name of the source branch to compare with the target branch.
+     * @param {string} targetBranch - The target branch is the branch that the changes will be merged
+     * into.
+     * @param {string} body - The `body` parameter is a string that represents the body of the pull
+     * request. It can be used to add additional information or context to the pull request. If no value
+     * is provided, an empty string is used.
+     * @param {string} resolveLineKeyword - `resolveLineKeyword` is a string parameter that represents a
+     * keyword used to identify if a pull request has been resolved. This is used in the
+     * `fetchPrsWithIssues` function to filter out pull requests that have already been resolved.
+     * @param {string} listTitle - The `listTitle` parameter is a string that represents the title of the
+     * changelog list that will be added to the body of the pull request. If this parameter is not
+     * provided, an empty string will be used instead.
+     * @param {string[]} excludeKeywords - `excludeKeywords` is an array of strings that contains
+     * keywords that should be excluded from the changelog. If a commit message contains any of these
+     * keywords, it will not be included in the changelog.
+     * @param {boolean} commitTypeGrouping - A boolean flag that determines whether the PRs should be
+     * grouped by commit type or not. If set to true, the PRs will be grouped by commit type and
+     * displayed under their respective headings. If set to false, the PRs will be displayed in a flat
+     * list without any grouping.
+     * @param {boolean} withAuthor - The `withAuthor` parameter is a boolean flag that determines whether
+     * or not to include the author's name in the generated changelog. If `true`, the author's name will
+     * be included in the changelog, otherwise it will not be included.
+     * @returns a Promise that resolves to a string. The string is the body of a changelog that includes
+     * links to pull requests and related issues, grouped by commit type and/or related issue. The body
+     * may also include a title for the list and exclude certain keywords. The function takes several
+     * parameters, including the source and target branches, the body of the changelog, and various
+     * options for grouping
+     */
+    compose(sourceBranch, targetBranch, body, resolveLineKeyword, listTitle, excludeKeywords, commitTypeGrouping, withAuthor) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
         return __awaiter(this, void 0, void 0, function* () {
             core.info(`Retrieving PR links for all diffs between head ${sourceBranch} and base ${targetBranch}...`);
             let bodyWithChangelog = body !== null && body !== void 0 ? body : '';
@@ -226,43 +293,96 @@ class BodyUtility {
                 bodyWithChangelog += listTitle ? `\n\r### ${listTitle}` : '';
             }
             const commitShas = yield this.getCommitShas(sourceBranch, targetBranch);
-            const prUrlWithIssues = yield this.fetchPrUrlWithIssues(commitShas, resolveLineKeyword);
+            const prsWithIssues = yield this.fetchPrsWithIssues(commitShas, resolveLineKeyword, excludeKeywords);
             // collect all issues so we can group prs via related issue
-            let prLinksObject = {};
+            let prsObject = {};
             let allIssues = [];
-            let prLinksWithoutRelatedIssue = [];
-            for (const [link, relatedIssues] of prUrlWithIssues) {
-                prLinksObject[link] = relatedIssues;
+            let prsWithoutRelatedIssue = [];
+            for (const [pr, relatedIssues] of prsWithIssues) {
+                prsObject[pr.id] = Object.assign(Object.assign({}, pr), { relatedIssues });
                 allIssues = allIssues.concat(relatedIssues);
                 if (!relatedIssues.length) {
-                    prLinksWithoutRelatedIssue.push(link);
+                    prsWithoutRelatedIssue.push(pr);
                 }
             }
             // returns unique issues, removing duplicates
             allIssues = [...new Set(allIssues)];
             // creates object of issues with related prs as the value
+            core.info('Grouping by related issues...');
             let issuesObject = {};
             for (const issue of allIssues) {
-                const prLinks = [];
-                for (const prLink in prLinksObject) {
-                    if (prLinksObject[prLink].includes(issue)) {
-                        prLinks.push(prLink);
+                const prs = [];
+                for (const pr in prsObject) {
+                    if ((_a = prsObject[pr].relatedIssues) === null || _a === void 0 ? void 0 : _a.includes(issue)) {
+                        prs.push(prsObject[pr]);
                     }
                 }
-                issuesObject[issue] = prLinks;
+                issuesObject[issue] = prs;
             }
-            for (const issue in issuesObject) {
-                bodyWithChangelog += `\n- ${issue}`;
-                for (const prLink of issuesObject[issue]) {
-                    bodyWithChangelog += `\n  - ${prLink}`;
+            issuesObject['no-issue'] = prsWithoutRelatedIssue;
+            // Process body changelog without commit type grouping
+            if (!commitTypeGrouping) {
+                core.info('Processing body changelog without commit type grouping...');
+                for (const issue in issuesObject) {
+                    if (issue === 'no-issue') {
+                        for (const pr of issuesObject[issue]) {
+                            const author = (_c = (_b = pr.head.user) === null || _b === void 0 ? void 0 : _b.name) !== null && _c !== void 0 ? _c : `${(_d = pr.head.user) === null || _d === void 0 ? void 0 : _d.login}`;
+                            bodyWithChangelog += `\n- ${pr.html_url}${withAuthor && author ? ' - ' + author : ''}`;
+                        }
+                        continue;
+                    }
+                    bodyWithChangelog += `\n- ${issue}`;
+                    for (const pr of issuesObject[issue]) {
+                        const author = (_f = (_e = pr.head.user) === null || _e === void 0 ? void 0 : _e.name) !== null && _f !== void 0 ? _f : `${(_g = pr.head.user) === null || _g === void 0 ? void 0 : _g.login}`;
+                        bodyWithChangelog += `\n  - ${pr.html_url}${withAuthor && author ? ' - ' + author : ''}`;
+                    }
                 }
+                return bodyWithChangelog;
             }
-            for (const prLink of prLinksWithoutRelatedIssue) {
-                bodyWithChangelog += `\n- ${prLink}`;
+            const commitTypesObject = this.groupByCommitType(issuesObject);
+            core.info('Rearranging commit groups...');
+            const rearrangedCommitTypesObject = {};
+            for (const v of Object.values(constants_1.COMMIT_TYPES)) {
+                if (!commitTypesObject[v]) {
+                    continue;
+                }
+                rearrangedCommitTypesObject[v] = commitTypesObject[v];
+            }
+            // Process body changelog without commit type grouping
+            core.info('Processing body changelog with commit type grouping...');
+            for (const commitType in rearrangedCommitTypesObject) {
+                if (commitType === constants_1.COMMIT_TYPES.other &&
+                    !Object.keys(rearrangedCommitTypesObject[commitType]).length) {
+                    continue;
+                }
+                bodyWithChangelog += `\n## ${commitType}`;
+                for (const issue in rearrangedCommitTypesObject[commitType]) {
+                    if (issue === 'no-issue') {
+                        for (const pr of issuesObject[issue]) {
+                            const author = (_j = (_h = pr.head.user) === null || _h === void 0 ? void 0 : _h.name) !== null && _j !== void 0 ? _j : `${(_k = pr.head.user) === null || _k === void 0 ? void 0 : _k.login}`;
+                            bodyWithChangelog += `\n- ${pr.html_url}${withAuthor && author ? ' - ' + author : ''}`;
+                        }
+                        continue;
+                    }
+                    bodyWithChangelog += `\n- ${issue}`;
+                    for (const pr of rearrangedCommitTypesObject[commitType][issue]) {
+                        const author = (_m = (_l = pr.head.user) === null || _l === void 0 ? void 0 : _l.name) !== null && _m !== void 0 ? _m : `${(_o = pr.head.user) === null || _o === void 0 ? void 0 : _o.login}`;
+                        bodyWithChangelog += `\n  - ${pr.html_url}${withAuthor && author ? ' - ' + author : ''}`;
+                    }
+                }
             }
             return bodyWithChangelog;
         });
     }
+    /**
+     * This function fetches all associated commits between two branches and returns their SHA values.
+     * @param {string} sourceBranch - The name of the source branch that you want to compare with the
+     * target branch.
+     * @param {string} targetBranch - The target branch is the branch that you want to compare the source
+     * branch to. In the code snippet, it is passed as a parameter to the `getCommitShas` function.
+     * @returns an array of strings, which are the SHA values of all the associated commits between the
+     * sourceBranch and targetBranch.
+     */
     getCommitShas(sourceBranch, targetBranch) {
         return __awaiter(this, void 0, void 0, function* () {
             core.debug(`Fetching all associated commits of ${sourceBranch} and ${targetBranch}...`);
@@ -270,18 +390,33 @@ class BodyUtility {
             return resp.data.commits.map((entry) => entry.sha);
         });
     }
-    fetchPrUrlWithIssues(commitShas, resolveLineKeyword) {
+    /**
+     * This function fetches associated pull request links and related issues of commit shas.
+     * @param {string[]} commitShas - An array of commit SHA values for which associated pull requests
+     * and related issues need to be fetched.
+     * @param {string} resolveLineKeyword - `resolveLineKeyword` is a string parameter that represents a
+     * keyword used to identify a line in the body of a pull request that contains information about
+     * related issues. This method searches for this keyword in the body of each pull request associated
+     * with a given commit SHA.
+     * @param {string[]} excludeKeywords - `excludeKeywords` is an array of strings that contains
+     * keywords that should be excluded from the search for associated pull requests. If a pull request's
+     * title includes any of these keywords, it will be skipped and not included in the final result.
+     * @returns a Promise that resolves to a Map object, where each key is a PrEntry object and each
+     * value is an array of related issue numbers as strings.
+     */
+    fetchPrsWithIssues(commitShas, resolveLineKeyword, excludeKeywords) {
         var _a, _b, _c, _d, _e;
         return __awaiter(this, void 0, void 0, function* () {
             core.debug(`Fetching associated pull request's link and related issues of commit shas: ${commitShas.toString()}`);
             const prUrlWithIssues = new Map();
             for (const commitSha of commitShas) {
                 const resp = yield this.octokit.rest.repos.listPullRequestsAssociatedWithCommit(Object.assign(Object.assign({}, github.context.repo), { commit_sha: commitSha }));
-                for (const entry of resp.data) {
-                    if (entry.state === 'open') {
+                for (const entryPR of resp.data) {
+                    if (entryPR.state === 'open' ||
+                        excludeKeywords.some(keyword => entryPR.title.toLowerCase().includes(keyword))) {
                         continue;
                     }
-                    const entryBody = (_a = entry.body) !== null && _a !== void 0 ? _a : '';
+                    const entryBody = (_a = entryPR.body) !== null && _a !== void 0 ? _a : '';
                     const bodyLines = entryBody.split('\n');
                     const resolvesKeywordLine = (_b = bodyLines.find(line => line.toLowerCase().includes(resolveLineKeyword))) !== null && _b !== void 0 ? _b : '';
                     const relatedIssuesFromHashtag = (_c = resolvesKeywordLine.match(/[^[{()}\]\s]*#\d*/g)) !== null && _c !== void 0 ? _c : [];
@@ -291,18 +426,64 @@ class BodyUtility {
                         ...relatedIssuesFromHashtag,
                         ...this.formatIssueLinksToHashtag(relatedIssuesFromLink)
                     ];
-                    prUrlWithIssues.set(entry.html_url, [...new Set(issues)]);
+                    prUrlWithIssues.set(entryPR, [...new Set(issues)]);
                 }
             }
             return prUrlWithIssues;
         });
     }
+    /**
+     * This function formats a list of issue links into hashtags.
+     * @param {string[]} links - The `links` parameter is an array of strings that represent links to
+     * issues.
+     * @returns The function `formatIssueLinksToHashtag` takes an array of strings called `links` as
+     * input and returns a new array of strings. Each string in the new array is a hashtag followed by
+     * the issue number extracted from the corresponding string in the input array. If the input string
+     * does not contain an issue number, an empty string is returned instead.
+     */
     formatIssueLinksToHashtag(links) {
         return links.map(link => {
             var _a, _b, _c;
             const issue = (_a = link.match(/issues\/\d*/)) !== null && _a !== void 0 ? _a : [];
             return (_c = '#' + ((_b = issue[0]) === null || _b === void 0 ? void 0 : _b.split('/')[1])) !== null && _c !== void 0 ? _c : '';
         });
+    }
+    /**
+     * This function groups issues by the commit type of the first PR title that has a prefix.
+     * @param issuesObject - The `issuesObject` parameter is an object with string keys and values that
+     * are arrays of `PrEntryWithRelatedIssues` objects. It is used to group the issues by commit type of
+     * the first PR title that has a prefix.
+     * @returns a record object that groups the input `issuesObject` by the commit type of the first PR
+     * title that has a prefix. The keys of the returned object are the commit types, and the values are
+     * objects that contain the same structure as the input `issuesObject`, but only with the issues that
+     * have a PR with a title that starts with the corresponding commit type prefix. If an
+     */
+    groupByCommitType(issuesObject) {
+        var _a, _b;
+        // Group issues by commit type of first PR title that has prefix
+        core.info('Grouping issues by commit type of first PR title with prefix...');
+        const commitTypesObject = {};
+        commitTypesObject[constants_1.COMMIT_TYPES.other] = {};
+        for (const issue in issuesObject) {
+            for (const [idx, pr] of issuesObject[issue].entries()) {
+                const prTitle = pr.title;
+                let isDone = false;
+                for (const prefix in constants_1.COMMIT_TYPES) {
+                    if (prTitle.startsWith(prefix)) {
+                        commitTypesObject[constants_1.COMMIT_TYPES[prefix]] = Object.assign(Object.assign({}, ((_a = commitTypesObject[constants_1.COMMIT_TYPES[prefix]]) !== null && _a !== void 0 ? _a : {})), { [issue]: issuesObject[issue] });
+                        isDone = true;
+                        break;
+                    }
+                }
+                if (isDone) {
+                    break;
+                }
+                if (idx === issuesObject[issue].length - 1) {
+                    commitTypesObject[constants_1.COMMIT_TYPES.other] = Object.assign(Object.assign({}, ((_b = commitTypesObject[constants_1.COMMIT_TYPES.other]) !== null && _b !== void 0 ? _b : {})), { [issue]: issuesObject[issue] });
+                }
+            }
+        }
+        return commitTypesObject;
     }
 }
 exports.BodyUtility = BodyUtility;
