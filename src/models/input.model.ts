@@ -14,6 +14,7 @@ export class Input {
   commitTypeGrouping: boolean
   excludeKeywords: string[]
   withAuthor: boolean
+  withCheckbox: boolean
 
   constructor() {
     this.token = core.getInput('token', {required: true})
@@ -31,6 +32,8 @@ export class Input {
     this.excludeKeywords = convertInputToArray('exclude-keywords')
     this.withAuthor =
       (core.getInput('with-author') ?? '').toLowerCase() === 'true'
+    this.withCheckbox =
+      (core.getInput('with-checkbox') ?? '').toLowerCase() === 'true'
 
     core.setSecret(this.token)
   }

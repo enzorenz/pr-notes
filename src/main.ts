@@ -35,10 +35,10 @@ async function run(): Promise<void> {
     core.info(
       '🔍 Checking if there is an open PR for the source to target branch...'
     )
-    const prNumber = await prUtility.getNumber(targetBranch, input.sourceBranch)
+    const prDetail = await prUtility.getDetail(targetBranch, input.sourceBranch)
 
-    if (prNumber) {
-      core.info(`PR# ${prNumber} exists.`)
+    if (prDetail) {
+      core.info(`PR# ${prDetail.number} exists.`)
     } else {
       core.info(`PR does not exist yet.`)
     }
@@ -48,17 +48,19 @@ async function run(): Promise<void> {
     const body = await bodyUtility.compose(
       input.sourceBranch,
       input.targetBranch,
+      prDetail?.body ?? '',
       input.body,
       input.resolveLineKeyword,
       input.listTitle,
       input.excludeKeywords,
       input.commitTypeGrouping,
-      input.withAuthor
+      input.withAuthor,
+      input.withCheckbox
     )
 
-    if (prNumber) {
+    if (prDetail) {
       core.info('Updating Pull Request...')
-      const pull = await prUtility.update(prNumber, body)
+      const pull = await prUtility.update(prDetail.number, body)
       core.info(`🎉 Pull Request updated: ${pull.html_url} (#${pull.number})`)
       core.setOutput('pr-number', pull.number)
     } else {
