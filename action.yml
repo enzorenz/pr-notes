@@ -47,6 +47,10 @@ inputs:
     description: 'Includes commit author in the list'
     default: 'false'
     required: false
+  with-checkbox:
+    description: 'Adds a checkbox to changelog main items making it a checklist'
+    default: 'false'
+    required: false
 runs:
   using: 'node16'
   main: 'dist/index.js'

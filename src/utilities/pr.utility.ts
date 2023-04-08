@@ -10,10 +10,10 @@ export class PullRequestUtility {
     this.octokit = octokit
   }
 
-  async getNumber(
+  async getDetail(
     targetBranch: string,
     sourceBranch: string
-  ): Promise<number | undefined> {
+  ): Promise<PullRequest | undefined> {
     core.debug(
       `Looking up pull request with source branch: "${sourceBranch}" and target branch: "${targetBranch}"...`
     )
@@ -27,7 +27,7 @@ export class PullRequestUtility {
     ).data as PullRequest[]
 
     core.debug(`Found ${prs.length} matches.`)
-    return prs.pop()?.number
+    return prs.pop()
   }
 
   async update(prNumber: number, body?: string): Promise<PullRequest> {
