@@ -8,6 +8,12 @@ If associated pull request is a resolution to an issue then that issue will be t
 
 <img width="689" alt="image" src="https://user-images.githubusercontent.com/42469290/230652349-78011c74-79ac-4d5c-868e-bc301e5fbe16.png">
 
+#### With Checkbox
+
+It also supports converting the changelog to a checklist. It can retain items that were already checked/unchecked and restore them when action reruns so no worries losing status.
+
+<img width="689" alt="image" src="https://user-images.githubusercontent.com/42469290/230721858-6a9483c9-2814-4582-92c4-06dcd5dabeb9.png">
+
 ### Usage
 
 Create a workflow
@@ -157,6 +163,13 @@ Resolves enzorenz/pr-notes#1234
       <td align="center">false</td>
       <td align="center"><code>true</code></td>
     </tr>
+    <tr>
+      <td align="center">with-checkbox</td>
+      <td align="center">Adds a checkbox to changelog main items making it a checklist</td>
+      <td align="center">false</td>
+      <td align="center">false</td>
+      <td align="center"><code>true</code></td>
+    </tr>
   </tbody>
 </table>
 
@@ -178,6 +191,6 @@ Resolves enzorenz/pr-notes#1234
   merge: 'Merges',
   release: 'Releases',
   sync: 'Syncs',
-  other: 'Others' // for PR titles that has does not use prefix
+  other: 'Others' // for PR titles that does not use prefix
 }
 ```

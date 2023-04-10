@@ -1,4 +1,5 @@
 import * as github from '@actions/github'
+// eslint-disable-next-line import/no-unresolved
 import {components} from '@octokit/openapi-types'
 
 export type Octokit = ReturnType<typeof github.getOctokit>

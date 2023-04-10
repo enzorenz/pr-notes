@@ -72,6 +72,7 @@ const github = __importStar(__nccwpck_require__(5438));
 const models_1 = __nccwpck_require__(1555);
 const utilities_1 = __nccwpck_require__(7902);
 function run() {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             // START
@@ -94,19 +95,19 @@ function run() {
             }
             core.info(`Target branch: "${input.targetBranch}" exists.`);
             core.info('🔍 Checking if there is an open PR for the source to target branch...');
-            const prNumber = yield prUtility.getNumber(targetBranch, input.sourceBranch);
-            if (prNumber) {
-                core.info(`PR# ${prNumber} exists.`);
+            const prDetail = yield prUtility.getDetail(targetBranch, input.sourceBranch);
+            if (prDetail) {
+                core.info(`PR# ${prDetail.number} exists.`);
             }
             else {
                 core.info(`PR does not exist yet.`);
             }
             core.endGroup();
             core.startGroup('Pull Request Processing');
-            const body = yield bodyUtility.compose(input.sourceBranch, input.targetBranch, input.body, input.resolveLineKeyword, input.listTitle, input.excludeKeywords, input.commitTypeGrouping, input.withAuthor);
-            if (prNumber) {
+            const body = yield bodyUtility.compose(input.sourceBranch, input.targetBranch, (_a = prDetail === null || prDetail === void 0 ? void 0 : prDetail.body) !== null && _a !== void 0 ? _a : '', input.body, input.resolveLineKeyword, input.listTitle, input.excludeKeywords, input.commitTypeGrouping, input.withAuthor, input.withCheckbox);
+            if (prDetail) {
                 core.info('Updating Pull Request...');
-                const pull = yield prUtility.update(prNumber, body);
+                const pull = yield prUtility.update(prDetail.number, body);
                 core.info(`🎉 Pull Request updated: ${pull.html_url} (#${pull.number})`);
                 core.setOutput('pr-number', pull.number);
             }
@@ -176,7 +177,7 @@ exports.Input = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 class Input {
     constructor() {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         this.token = core.getInput('token', { required: true });
         this.sourceBranch = core.getInput('source-branch', { required: true });
         this.targetBranch = core.getInput('target-branch', { required: true });
@@ -192,6 +193,8 @@ class Input {
         this.excludeKeywords = convertInputToArray('exclude-keywords');
         this.withAuthor =
             ((_c = core.getInput('with-author')) !== null && _c !== void 0 ? _c : '').toLowerCase() === 'true';
+        this.withCheckbox =
+            ((_d = core.getInput('with-checkbox')) !== null && _d !== void 0 ? _d : '').toLowerCase() === 'true';
         core.setSecret(this.token);
     }
 }
@@ -248,56 +251,74 @@ exports.BodyUtility = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const constants_1 = __nccwpck_require__(5105);
-const urlRegex = /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[-;:&=\+\$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=\+\$,\w]+@)[A-Za-z0-9.-]+)((?:\/[\+~%\/.\w-_]*)?\??(?:[-\+=&;%@.\w_]*)#?(?:[\w]*))?)/g;
+const urlRegex = 
+// eslint-disable-next-line no-useless-escape
+/((([A-Za-z]{3,9}:(?:\/\/)?)(?:[-;:&=\+\$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=\+\$,\w]+@)[A-Za-z0-9.-]+)((?:\/[\+~%\/.\w-_]*)?\??(?:[-\+=&;%@.\w_]*)#?(?:[\w]*))?)/g;
 class BodyUtility {
     constructor(octokit) {
         this.octokit = octokit;
     }
     /**
-     * This function composes a changelog by retrieving PR links and grouping them by related issues or
-     * commit types.
-     * @param {string} sourceBranch - The name of the source branch to compare with the target branch.
-     * @param {string} targetBranch - The target branch is the branch that the changes will be merged
-     * into.
-     * @param {string} body - The `body` parameter is a string that represents the body of the pull
-     * request. It can be used to add additional information or context to the pull request. If no value
-     * is provided, an empty string is used.
-     * @param {string} resolveLineKeyword - `resolveLineKeyword` is a string parameter that represents a
-     * keyword used to identify if a pull request has been resolved. This is used in the
-     * `fetchPrsWithIssues` function to filter out pull requests that have already been resolved.
+     * This is a function that composes a pull request body with a changelog based on the
+     * differences between two branches, grouping commits by type and related issues.
+     * @param {string} sourceBranch - The name of the source branch for the pull request.
+     * @param {string} targetBranch - The target branch is the branch that the pull request is being
+     * merged into.
+     * @param {string} currentBody - The current body of the pull request, which is the existing text in
+     * the pull request description.
+     * @param {string} body - The `body` parameter is a string representing the new body of the pull
+     * request. It is an optional parameter that can be used to append the generated changelog to the
+     * existing pull request body. If not provided, an empty string will be used as the default value.
+     * @param {string} resolveLineKeyword - The `resolveLineKeyword` parameter is a string that is used
+     * to identify lines in the pull request body that indicate a resolved issue or pull request. These
+     * lines will be excluded from the changelog generated by the `compose` function.
      * @param {string} listTitle - The `listTitle` parameter is a string that represents the title of the
-     * changelog list that will be added to the body of the pull request. If this parameter is not
-     * provided, an empty string will be used instead.
+     * changelog list that will be added to the pull request body. If it is not provided, an empty string
+     * will be used instead.
      * @param {string[]} excludeKeywords - `excludeKeywords` is an array of strings that contains
-     * keywords that should be excluded from the changelog. If a commit message contains any of these
-     * keywords, it will not be included in the changelog.
-     * @param {boolean} commitTypeGrouping - A boolean flag that determines whether the PRs should be
-     * grouped by commit type or not. If set to true, the PRs will be grouped by commit type and
-     * displayed under their respective headings. If set to false, the PRs will be displayed in a flat
-     * list without any grouping.
-     * @param {boolean} withAuthor - The `withAuthor` parameter is a boolean flag that determines whether
-     * or not to include the author's name in the generated changelog. If `true`, the author's name will
-     * be included in the changelog, otherwise it will not be included.
-     * @returns a Promise that resolves to a string. The string is the body of a changelog that includes
-     * links to pull requests and related issues, grouped by commit type and/or related issue. The body
-     * may also include a title for the list and exclude certain keywords. The function takes several
-     * parameters, including the source and target branches, the body of the changelog, and various
-     * options for grouping
+     * keywords that should be excluded when searching for pull requests related to issues. If a pull
+     * request contains any of these keywords in its title or body, it will not be included in the
+     * changelog.
+     * @param {boolean} commitTypeGrouping - A boolean flag indicating whether to group pull requests by
+     * commit type in the changelog. If set to true, pull requests will be grouped by their commit type
+     * (e.g. "feat", "fix", "docs", etc.) in the changelog. If set to false, pull requests will be
+     * @param {boolean} withAuthor - A boolean flag indicating whether to include the author's name in
+     * the changelog entry for each pull request. If true, the author's name will be included. If false,
+     * only the pull request URL will be included.
+     * @param {boolean} withCheckbox - A boolean flag indicating whether to include checkboxes in the
+     * changelog for each PR.
+     * @returns a Promise that resolves to a string. The string is the body of a pull request with a
+     * changelog of all the diffs between two branches, grouped by related issues and optionally by
+     * commit type. The changelog includes links to the pull requests and checkboxes for each item. The
+     * function also takes in several parameters to customize the changelog.
      */
-    compose(sourceBranch, targetBranch, body, resolveLineKeyword, listTitle, excludeKeywords, commitTypeGrouping, withAuthor) {
+    compose(sourceBranch, targetBranch, currentBody, body, resolveLineKeyword, listTitle, excludeKeywords, commitTypeGrouping, withAuthor, withCheckbox) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
         return __awaiter(this, void 0, void 0, function* () {
             core.info(`Retrieving PR links for all diffs between head ${sourceBranch} and base ${targetBranch}...`);
             let bodyWithChangelog = body !== null && body !== void 0 ? body : '';
+            // Retrieves all checked items from the current body of the pull request
+            const checkedItems = currentBody
+                .split('\n')
+                .filter(line => /^- \[x\] (.+)/.test(line))
+                .map(line => {
+                const match = line.match(/^-\s*\[x\]\s*(.+?)(\s+-\s+.+)?$/);
+                if (match) {
+                    return match[1];
+                }
+                return null;
+            })
+                .filter((item) => item !== null);
+            core.debug(`Checked Items: ${JSON.stringify(checkedItems)}`);
             if (listTitle) {
                 bodyWithChangelog += listTitle ? `\n\r### ${listTitle}` : '';
             }
             const commitShas = yield this.getCommitShas(sourceBranch, targetBranch);
             const prsWithIssues = yield this.fetchPrsWithIssues(commitShas, resolveLineKeyword, excludeKeywords);
             // collect all issues so we can group prs via related issue
-            let prsObject = {};
+            const prsObject = {};
             let allIssues = [];
-            let prsWithoutRelatedIssue = [];
+            const prsWithoutRelatedIssue = [];
             for (const [pr, relatedIssues] of prsWithIssues) {
                 prsObject[pr.id] = Object.assign(Object.assign({}, pr), { relatedIssues });
                 allIssues = allIssues.concat(relatedIssues);
@@ -309,7 +330,7 @@ class BodyUtility {
             allIssues = [...new Set(allIssues)];
             // creates object of issues with related prs as the value
             core.info('Grouping by related issues...');
-            let issuesObject = {};
+            const issuesObject = {};
             for (const issue of allIssues) {
                 const prs = [];
                 for (const pr in prsObject) {
@@ -327,14 +348,16 @@ class BodyUtility {
                     if (issue === 'no-issue') {
                         for (const pr of issuesObject[issue]) {
                             const author = (_c = (_b = pr.head.user) === null || _b === void 0 ? void 0 : _b.name) !== null && _c !== void 0 ? _c : `${(_d = pr.head.user) === null || _d === void 0 ? void 0 : _d.login}`;
-                            bodyWithChangelog += `\n- ${pr.html_url}${withAuthor && author ? ' - ' + author : ''}`;
+                            const checkbox = this.addCheckbox(withCheckbox, checkedItems, pr.html_url);
+                            bodyWithChangelog += `\n- ${checkbox}${pr.html_url}${withAuthor && author ? ` - ${author}` : ''}`;
                         }
                         continue;
                     }
-                    bodyWithChangelog += `\n- ${issue}`;
+                    const checkbox = this.addCheckbox(withCheckbox, checkedItems, issue);
+                    bodyWithChangelog += `\n- ${checkbox}${issue}`;
                     for (const pr of issuesObject[issue]) {
                         const author = (_f = (_e = pr.head.user) === null || _e === void 0 ? void 0 : _e.name) !== null && _f !== void 0 ? _f : `${(_g = pr.head.user) === null || _g === void 0 ? void 0 : _g.login}`;
-                        bodyWithChangelog += `\n  - ${pr.html_url}${withAuthor && author ? ' - ' + author : ''}`;
+                        bodyWithChangelog += `\n  - ${pr.html_url}${withAuthor && author ? ` - ${author}` : ''}`;
                     }
                 }
                 return bodyWithChangelog;
@@ -360,14 +383,16 @@ class BodyUtility {
                     if (issue === 'no-issue') {
                         for (const pr of issuesObject[issue]) {
                             const author = (_j = (_h = pr.head.user) === null || _h === void 0 ? void 0 : _h.name) !== null && _j !== void 0 ? _j : `${(_k = pr.head.user) === null || _k === void 0 ? void 0 : _k.login}`;
-                            bodyWithChangelog += `\n- ${pr.html_url}${withAuthor && author ? ' - ' + author : ''}`;
+                            const checkbox = this.addCheckbox(withCheckbox, checkedItems, pr.html_url);
+                            bodyWithChangelog += `\n- ${checkbox}${pr.html_url}${withAuthor && author ? ` - ${author}` : ''}`;
                         }
                         continue;
                     }
-                    bodyWithChangelog += `\n- ${issue}`;
+                    const checkbox = this.addCheckbox(withCheckbox, checkedItems, issue);
+                    bodyWithChangelog += `\n- ${checkbox}${issue}`;
                     for (const pr of rearrangedCommitTypesObject[commitType][issue]) {
                         const author = (_m = (_l = pr.head.user) === null || _l === void 0 ? void 0 : _l.name) !== null && _m !== void 0 ? _m : `${(_o = pr.head.user) === null || _o === void 0 ? void 0 : _o.login}`;
-                        bodyWithChangelog += `\n  - ${pr.html_url}${withAuthor && author ? ' - ' + author : ''}`;
+                        bodyWithChangelog += `\n  - ${pr.html_url}${withAuthor && author ? ` - ${author}` : ''}`;
                     }
                 }
             }
@@ -445,7 +470,7 @@ class BodyUtility {
         return links.map(link => {
             var _a, _b, _c;
             const issue = (_a = link.match(/issues\/\d*/)) !== null && _a !== void 0 ? _a : [];
-            return (_c = '#' + ((_b = issue[0]) === null || _b === void 0 ? void 0 : _b.split('/')[1])) !== null && _c !== void 0 ? _c : '';
+            return (_c = `#${(_b = issue[0]) === null || _b === void 0 ? void 0 : _b.split('/')[1]}`) !== null && _c !== void 0 ? _c : '';
         });
     }
     /**
@@ -484,6 +509,22 @@ class BodyUtility {
             }
         }
         return commitTypesObject;
+    }
+    /**
+     * This function adds a checkbox to a string based on a boolean value and an array of checked items.
+     * @param {boolean} withCheckbox - A boolean value indicating whether a checkbox should be added or
+     * not.
+     * @param {string[]} checkedItems - `checkedItems` is an array of strings that contains the items
+     * that have been checked.
+     * @param {string} target - The target parameter is a string that represents the item for which the
+     * checkbox is being added.
+     * @returns a string that contains either '[x] ' or '[ ] ' depending on the value of the
+     * `withCheckbox` parameter and whether the `target` parameter is included in the `checkedItems`
+     * array. If `withCheckbox` is true and `target` is included in `checkedItems`, the function returns
+     * '[x] '. If `withCheckbox` is true but `target
+     */
+    addCheckbox(withCheckbox, checkedItems, target) {
+        return withCheckbox ? (checkedItems.includes(target) ? '[x] ' : '[ ] ') : '';
     }
 }
 exports.BodyUtility = BodyUtility;
@@ -661,13 +702,12 @@ class PullRequestUtility {
     constructor(octokit) {
         this.octokit = octokit;
     }
-    getNumber(targetBranch, sourceBranch) {
-        var _a;
+    getDetail(targetBranch, sourceBranch) {
         return __awaiter(this, void 0, void 0, function* () {
             core.debug(`Looking up pull request with source branch: "${sourceBranch}" and target branch: "${targetBranch}"...`);
             const prs = (yield this.octokit.rest.pulls.list(Object.assign(Object.assign({}, github.context.repo), { state: 'open', base: targetBranch, head: `${github.context.repo.owner}:${sourceBranch}` }))).data;
             core.debug(`Found ${prs.length} matches.`);
-            return (_a = prs.pop()) === null || _a === void 0 ? void 0 : _a.number;
+            return prs.pop();
         });
     }
     update(prNumber, body) {
