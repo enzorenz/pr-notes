@@ -293,7 +293,7 @@ class BodyUtility {
      * function also takes in several parameters to customize the changelog.
      */
     compose(sourceBranch, targetBranch, currentBody, body, resolveLineKeyword, listTitle, excludeKeywords, commitTypeGrouping, withAuthor, withCheckbox) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
+        var _a, _b, _c, _d, _e;
         return __awaiter(this, void 0, void 0, function* () {
             core.info(`Retrieving PR links for all diffs between head ${sourceBranch} and base ${targetBranch}...`);
             let bodyWithChangelog = body !== null && body !== void 0 ? body : '';
@@ -341,13 +341,16 @@ class BodyUtility {
                 issuesObject[issue] = prs;
             }
             issuesObject['no-issue'] = prsWithoutRelatedIssue;
+            if (Object.keys(prsObject)[0]) {
+                core.debug(`Sample PR: ${JSON.stringify(prsObject[Object.keys(prsObject)[0]] || undefined)}`);
+            }
             // Process body changelog without commit type grouping
             if (!commitTypeGrouping) {
                 core.info('Processing body changelog without commit type grouping...');
                 for (const issue in issuesObject) {
                     if (issue === 'no-issue') {
                         for (const pr of issuesObject[issue]) {
-                            const author = (_c = (_b = pr.head.user) === null || _b === void 0 ? void 0 : _b.name) !== null && _c !== void 0 ? _c : `${(_d = pr.head.user) === null || _d === void 0 ? void 0 : _d.login}`;
+                            const author = (_b = pr.user) === null || _b === void 0 ? void 0 : _b.login;
                             const checkbox = this.addCheckbox(withCheckbox, checkedItems, pr.html_url);
                             bodyWithChangelog += `\n- ${checkbox}${pr.html_url}${withAuthor && author ? ` - ${author}` : ''}`;
                         }
@@ -356,7 +359,7 @@ class BodyUtility {
                     const checkbox = this.addCheckbox(withCheckbox, checkedItems, issue);
                     bodyWithChangelog += `\n- ${checkbox}${issue}`;
                     for (const pr of issuesObject[issue]) {
-                        const author = (_f = (_e = pr.head.user) === null || _e === void 0 ? void 0 : _e.name) !== null && _f !== void 0 ? _f : `${(_g = pr.head.user) === null || _g === void 0 ? void 0 : _g.login}`;
+                        const author = (_c = pr.user) === null || _c === void 0 ? void 0 : _c.login;
                         bodyWithChangelog += `\n  - ${pr.html_url}${withAuthor && author ? ` - ${author}` : ''}`;
                     }
                 }
@@ -382,7 +385,7 @@ class BodyUtility {
                 for (const issue in rearrangedCommitTypesObject[commitType]) {
                     if (issue === 'no-issue') {
                         for (const pr of issuesObject[issue]) {
-                            const author = (_j = (_h = pr.head.user) === null || _h === void 0 ? void 0 : _h.name) !== null && _j !== void 0 ? _j : `${(_k = pr.head.user) === null || _k === void 0 ? void 0 : _k.login}`;
+                            const author = (_d = pr.user) === null || _d === void 0 ? void 0 : _d.login;
                             const checkbox = this.addCheckbox(withCheckbox, checkedItems, pr.html_url);
                             bodyWithChangelog += `\n- ${checkbox}${pr.html_url}${withAuthor && author ? ` - ${author}` : ''}`;
                         }
@@ -391,7 +394,7 @@ class BodyUtility {
                     const checkbox = this.addCheckbox(withCheckbox, checkedItems, issue);
                     bodyWithChangelog += `\n- ${checkbox}${issue}`;
                     for (const pr of rearrangedCommitTypesObject[commitType][issue]) {
-                        const author = (_m = (_l = pr.head.user) === null || _l === void 0 ? void 0 : _l.name) !== null && _m !== void 0 ? _m : `${(_o = pr.head.user) === null || _o === void 0 ? void 0 : _o.login}`;
+                        const author = (_e = pr.user) === null || _e === void 0 ? void 0 : _e.login;
                         bodyWithChangelog += `\n  - ${pr.html_url}${withAuthor && author ? ` - ${author}` : ''}`;
                     }
                 }

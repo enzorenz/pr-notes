@@ -123,13 +123,21 @@ export class BodyUtility {
     }
     issuesObject['no-issue'] = prsWithoutRelatedIssue
 
+    if (Object.keys(prsObject)[0]) {
+      core.debug(
+        `Sample PR: ${JSON.stringify(
+          prsObject[Object.keys(prsObject)[0] as unknown as number] || undefined
+        )}`
+      )
+    }
+
     // Process body changelog without commit type grouping
     if (!commitTypeGrouping) {
       core.info('Processing body changelog without commit type grouping...')
       for (const issue in issuesObject) {
         if (issue === 'no-issue') {
           for (const pr of issuesObject[issue]) {
-            const author = pr.head.user?.name ?? `${pr.head.user?.login}`
+            const author = pr.user?.login
             const checkbox = this.addCheckbox(
               withCheckbox,
               checkedItems,
@@ -145,7 +153,7 @@ export class BodyUtility {
         const checkbox = this.addCheckbox(withCheckbox, checkedItems, issue)
         bodyWithChangelog += `\n- ${checkbox}${issue}`
         for (const pr of issuesObject[issue]) {
-          const author = pr.head.user?.name ?? `${pr.head.user?.login}`
+          const author = pr.user?.login
           bodyWithChangelog += `\n  - ${pr.html_url}${
             withAuthor && author ? ` - ${author}` : ''
           }`
@@ -181,7 +189,7 @@ export class BodyUtility {
       for (const issue in rearrangedCommitTypesObject[commitType]) {
         if (issue === 'no-issue') {
           for (const pr of issuesObject[issue]) {
-            const author = pr.head.user?.name ?? `${pr.head.user?.login}`
+            const author = pr.user?.login
             const checkbox = this.addCheckbox(
               withCheckbox,
               checkedItems,
@@ -197,7 +205,7 @@ export class BodyUtility {
         const checkbox = this.addCheckbox(withCheckbox, checkedItems, issue)
         bodyWithChangelog += `\n- ${checkbox}${issue}`
         for (const pr of rearrangedCommitTypesObject[commitType][issue]) {
-          const author = pr.head.user?.name ?? `${pr.head.user?.login}`
+          const author = pr.user?.login
           bodyWithChangelog += `\n  - ${pr.html_url}${
             withAuthor && author ? ` - ${author}` : ''
           }`
