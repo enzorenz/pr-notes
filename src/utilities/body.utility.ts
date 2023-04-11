@@ -123,13 +123,16 @@ export class BodyUtility {
     }
     issuesObject['no-issue'] = prsWithoutRelatedIssue
 
-    if (Object.keys(prsObject)[0]) {
-      core.debug(
-        `Sample PR: ${JSON.stringify(
-          prsObject[Object.keys(prsObject)[0] as unknown as number] || undefined
-        )}`
-      )
-    }
+    core.debug(
+      `Sample PR: ${
+        Object.keys(prsObject)[0]
+          ? JSON.stringify(
+              prsObject[Object.keys(prsObject)[0] as unknown as number] ||
+                undefined
+            )
+          : ''
+      }`
+    )
 
     // Process body changelog without commit type grouping
     if (!commitTypeGrouping) {
@@ -188,7 +191,7 @@ export class BodyUtility {
 
       for (const issue in rearrangedCommitTypesObject[commitType]) {
         if (issue === 'no-issue') {
-          for (const pr of issuesObject[issue]) {
+          for (const pr of rearrangedCommitTypesObject[commitType][issue]) {
             const author = pr.user?.login
             const checkbox = this.addCheckbox(
               withCheckbox,
@@ -339,29 +342,87 @@ export class BodyUtility {
     core.info('Grouping issues by commit type of first PR title with prefix...')
     const commitTypesObject: Record<string, typeof issuesObject> = {}
     commitTypesObject[COMMIT_TYPES.other] = {}
+    const commitPrefixes = Object.keys(COMMIT_TYPES)
     for (const issue in issuesObject) {
+      const isNoIssue = issue === 'no-issue'
+
       for (const [idx, pr] of issuesObject[issue].entries()) {
         const prTitle = pr.title
         let isDone = false
 
+        // Loop through COMMIT_TYPES object and check if prTitle starts with a key in COMMIT_TYPES
         for (const prefix in COMMIT_TYPES) {
           if (prTitle.startsWith(prefix)) {
-            commitTypesObject[COMMIT_TYPES[prefix]] = {
-              ...(commitTypesObject[COMMIT_TYPES[prefix]] ?? {}),
-              [issue]: issuesObject[issue]
+            if (isNoIssue) {
+              if (
+                commitTypesObject[COMMIT_TYPES[prefix]] &&
+                commitTypesObject[COMMIT_TYPES[prefix]][issue]
+              ) {
+                commitTypesObject[COMMIT_TYPES[prefix]][issue].push(pr)
+              } else {
+                commitTypesObject[COMMIT_TYPES[prefix]] = {
+                  ...(commitTypesObject[COMMIT_TYPES[prefix]] ?? {}),
+                  [issue]: [pr]
+                }
+              }
+            } else {
+              commitTypesObject[COMMIT_TYPES[prefix]] = {
+                ...(commitTypesObject[COMMIT_TYPES[prefix]] ?? {}),
+                [issue]: issuesObject[issue]
+              }
+            }
+            isDone = true
+            break
+          } else if (
+            idx !== issuesObject[issue].length - 1 &&
+            isNoIssue &&
+            !commitPrefixes.some(key => prTitle.startsWith(key))
+          ) {
+            // If prTitle doesn't start with any of the keys in COMMIT_TYPES
+            if (
+              commitTypesObject[COMMIT_TYPES.other] &&
+              commitTypesObject[COMMIT_TYPES.other][issue]
+            ) {
+              commitTypesObject[COMMIT_TYPES.other][issue].push(pr)
+            } else {
+              commitTypesObject[COMMIT_TYPES.other] = {
+                ...(commitTypesObject[COMMIT_TYPES.other] ?? {}),
+                [issue]: [pr]
+              }
             }
             isDone = true
             break
           }
         }
+
+        // If commit type is found, continue or break loop depending on value of isNoIssue
         if (isDone) {
-          break
+          if (isNoIssue) {
+            continue
+          } else {
+            break
+          }
         }
 
+        // If no commits from the issue has prefix then just put in others
         if (idx === issuesObject[issue].length - 1) {
-          commitTypesObject[COMMIT_TYPES.other] = {
-            ...(commitTypesObject[COMMIT_TYPES.other] ?? {}),
-            [issue]: issuesObject[issue]
+          if (isNoIssue) {
+            if (
+              commitTypesObject[COMMIT_TYPES.other] &&
+              commitTypesObject[COMMIT_TYPES.other][issue]
+            ) {
+              commitTypesObject[COMMIT_TYPES.other][issue].push(pr)
+            } else {
+              commitTypesObject[COMMIT_TYPES.other] = {
+                ...(commitTypesObject[COMMIT_TYPES.other] ?? {}),
+                [issue]: [pr]
+              }
+            }
+          } else {
+            commitTypesObject[COMMIT_TYPES.other] = {
+              ...(commitTypesObject[COMMIT_TYPES.other] ?? {}),
+              [issue]: issuesObject[issue]
+            }
           }
         }
       }
