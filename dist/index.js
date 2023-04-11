@@ -341,9 +341,10 @@ class BodyUtility {
                 issuesObject[issue] = prs;
             }
             issuesObject['no-issue'] = prsWithoutRelatedIssue;
-            if (Object.keys(prsObject)[0]) {
-                core.debug(`Sample PR: ${JSON.stringify(prsObject[Object.keys(prsObject)[0]] || undefined)}`);
-            }
+            core.debug(`Sample PR: ${Object.keys(prsObject)[0]
+                ? JSON.stringify(prsObject[Object.keys(prsObject)[0]] ||
+                    undefined)
+                : ''}`);
             // Process body changelog without commit type grouping
             if (!commitTypeGrouping) {
                 core.info('Processing body changelog without commit type grouping...');
@@ -487,27 +488,70 @@ class BodyUtility {
      * have a PR with a title that starts with the corresponding commit type prefix. If an
      */
     groupByCommitType(issuesObject) {
-        var _a, _b;
+        var _a, _b, _c, _d, _e;
         // Group issues by commit type of first PR title that has prefix
         core.info('Grouping issues by commit type of first PR title with prefix...');
         const commitTypesObject = {};
         commitTypesObject[constants_1.COMMIT_TYPES.other] = {};
         for (const issue in issuesObject) {
+            const isNoIssue = issue === 'no-issue';
             for (const [idx, pr] of issuesObject[issue].entries()) {
                 const prTitle = pr.title;
                 let isDone = false;
+                // Loop through COMMIT_TYPES object and check if prTitle starts with a key in COMMIT_TYPES
                 for (const prefix in constants_1.COMMIT_TYPES) {
                     if (prTitle.startsWith(prefix)) {
-                        commitTypesObject[constants_1.COMMIT_TYPES[prefix]] = Object.assign(Object.assign({}, ((_a = commitTypesObject[constants_1.COMMIT_TYPES[prefix]]) !== null && _a !== void 0 ? _a : {})), { [issue]: issuesObject[issue] });
+                        if (isNoIssue) {
+                            if (commitTypesObject[constants_1.COMMIT_TYPES[prefix]] &&
+                                commitTypesObject[constants_1.COMMIT_TYPES[prefix]][issue]) {
+                                commitTypesObject[constants_1.COMMIT_TYPES[prefix]][issue].push(pr);
+                            }
+                            else {
+                                commitTypesObject[constants_1.COMMIT_TYPES[prefix]] = Object.assign(Object.assign({}, ((_a = commitTypesObject[constants_1.COMMIT_TYPES[prefix]]) !== null && _a !== void 0 ? _a : {})), { [issue]: [pr] });
+                            }
+                        }
+                        else {
+                            commitTypesObject[constants_1.COMMIT_TYPES[prefix]] = Object.assign(Object.assign({}, ((_b = commitTypesObject[constants_1.COMMIT_TYPES[prefix]]) !== null && _b !== void 0 ? _b : {})), { [issue]: issuesObject[issue] });
+                        }
+                        isDone = true;
+                        break;
+                    }
+                    else if (idx !== issuesObject[issue].length - 1 && isNoIssue) {
+                        // If prTitle doesn't start with any of the keys in COMMIT_TYPES
+                        if (commitTypesObject[constants_1.COMMIT_TYPES.other] &&
+                            commitTypesObject[constants_1.COMMIT_TYPES.other][issue]) {
+                            commitTypesObject[constants_1.COMMIT_TYPES.other][issue].push(pr);
+                        }
+                        else {
+                            commitTypesObject[constants_1.COMMIT_TYPES.other] = Object.assign(Object.assign({}, ((_c = commitTypesObject[constants_1.COMMIT_TYPES.other]) !== null && _c !== void 0 ? _c : {})), { [issue]: [pr] });
+                        }
                         isDone = true;
                         break;
                     }
                 }
+                // If commit type is found, continue or break loop depending on value of isNoIssue
                 if (isDone) {
-                    break;
+                    if (isNoIssue) {
+                        continue;
+                    }
+                    else {
+                        break;
+                    }
                 }
+                // If no commits from the issue has prefix then just put in others
                 if (idx === issuesObject[issue].length - 1) {
-                    commitTypesObject[constants_1.COMMIT_TYPES.other] = Object.assign(Object.assign({}, ((_b = commitTypesObject[constants_1.COMMIT_TYPES.other]) !== null && _b !== void 0 ? _b : {})), { [issue]: issuesObject[issue] });
+                    if (isNoIssue) {
+                        if (commitTypesObject[constants_1.COMMIT_TYPES.other] &&
+                            commitTypesObject[constants_1.COMMIT_TYPES.other][issue]) {
+                            commitTypesObject[constants_1.COMMIT_TYPES.other][issue].push(pr);
+                        }
+                        else {
+                            commitTypesObject[constants_1.COMMIT_TYPES.other] = Object.assign(Object.assign({}, ((_d = commitTypesObject[constants_1.COMMIT_TYPES.other]) !== null && _d !== void 0 ? _d : {})), { [issue]: [pr] });
+                        }
+                    }
+                    else {
+                        commitTypesObject[constants_1.COMMIT_TYPES.other] = Object.assign(Object.assign({}, ((_e = commitTypesObject[constants_1.COMMIT_TYPES.other]) !== null && _e !== void 0 ? _e : {})), { [issue]: issuesObject[issue] });
+                    }
                 }
             }
         }
