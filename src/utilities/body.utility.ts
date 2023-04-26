@@ -139,7 +139,8 @@ export class BodyUtility {
       core.info('Processing body changelog without commit type grouping...')
       for (const issue in issuesObject) {
         if (issue === 'no-issue') {
-          for (const pr of issuesObject[issue]) {
+          const uniquePRs = this.removeDuplicates(issuesObject[issue])
+          for (const pr of uniquePRs) {
             const author = pr.user?.login
             const checkbox = this.addCheckbox(
               withCheckbox,
@@ -177,7 +178,7 @@ export class BodyUtility {
       rearrangedCommitTypesObject[v] = commitTypesObject[v]
     }
 
-    // Process body changelog without commit type grouping
+    // Process body changelog with commit type grouping
     core.info('Processing body changelog with commit type grouping...')
     for (const commitType in rearrangedCommitTypesObject) {
       if (
@@ -191,7 +192,8 @@ export class BodyUtility {
 
       for (const issue in rearrangedCommitTypesObject[commitType]) {
         if (issue === 'no-issue') {
-          for (const pr of issuesObject[issue]) {
+          const uniquePRs = this.removeDuplicates(issuesObject[issue])
+          for (const pr of uniquePRs) {
             const author = pr.user?.login
             const checkbox = this.addCheckbox(
               withCheckbox,
@@ -342,6 +344,7 @@ export class BodyUtility {
     core.info('Grouping issues by commit type of first PR title with prefix...')
     const commitTypesObject: Record<string, typeof issuesObject> = {}
     commitTypesObject[COMMIT_TYPES.other] = {}
+    const commitPrefixes = Object.keys(COMMIT_TYPES)
     for (const issue in issuesObject) {
       const isNoIssue = issue === 'no-issue'
 
@@ -372,7 +375,11 @@ export class BodyUtility {
             }
             isDone = true
             break
-          } else if (idx !== issuesObject[issue].length - 1 && isNoIssue) {
+          } else if (
+            idx !== issuesObject[issue].length - 1 &&
+            isNoIssue &&
+            !commitPrefixes.some(key => prTitle.startsWith(key))
+          ) {
             // If prTitle doesn't start with any of the keys in COMMIT_TYPES
             if (
               commitTypesObject[COMMIT_TYPES.other] &&
@@ -445,5 +452,19 @@ export class BodyUtility {
     target: string
   ): string {
     return withCheckbox ? (checkedItems.includes(target) ? '[x] ' : '[ ] ') : ''
+  }
+
+  /**
+   * This function removes duplicates from an array of objects based on a specific property.
+   * @param {PrEntryWithRelatedIssues[]} arrayOfPRs - An array of objects of type
+   * `PrEntryWithRelatedIssues` which contains information about pull requests and related issues.
+   * @returns The `removeDuplicates` function is returning an array of `PrEntryWithRelatedIssues`
+   * objects with duplicates removed. It uses the `Map` object to filter out duplicate objects based on
+   * their `id` property.
+   */
+  private removeDuplicates(
+    arrayOfPRs: PrEntryWithRelatedIssues[]
+  ): PrEntryWithRelatedIssues[] {
+    return [...new Map(arrayOfPRs.map(item => [item.id, item])).values()]
   }
 }
