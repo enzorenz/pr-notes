@@ -350,7 +350,8 @@ class BodyUtility {
                 core.info('Processing body changelog without commit type grouping...');
                 for (const issue in issuesObject) {
                     if (issue === 'no-issue') {
-                        for (const pr of issuesObject[issue]) {
+                        const uniquePRs = this.removeDuplicates(issuesObject[issue]);
+                        for (const pr of uniquePRs) {
                             const author = (_b = pr.user) === null || _b === void 0 ? void 0 : _b.login;
                             const checkbox = this.addCheckbox(withCheckbox, checkedItems, pr.html_url);
                             bodyWithChangelog += `\n- ${checkbox}${pr.html_url}${withAuthor && author ? ` - ${author}` : ''}`;
@@ -375,7 +376,7 @@ class BodyUtility {
                 }
                 rearrangedCommitTypesObject[v] = commitTypesObject[v];
             }
-            // Process body changelog without commit type grouping
+            // Process body changelog with commit type grouping
             core.info('Processing body changelog with commit type grouping...');
             for (const commitType in rearrangedCommitTypesObject) {
                 if (commitType === constants_1.COMMIT_TYPES.other &&
@@ -385,7 +386,8 @@ class BodyUtility {
                 bodyWithChangelog += `\n## ${commitType}`;
                 for (const issue in rearrangedCommitTypesObject[commitType]) {
                     if (issue === 'no-issue') {
-                        for (const pr of rearrangedCommitTypesObject[commitType][issue]) {
+                        const uniquePRs = this.removeDuplicates(issuesObject[issue]);
+                        for (const pr of uniquePRs) {
                             const author = (_d = pr.user) === null || _d === void 0 ? void 0 : _d.login;
                             const checkbox = this.addCheckbox(withCheckbox, checkedItems, pr.html_url);
                             bodyWithChangelog += `\n- ${checkbox}${pr.html_url}${withAuthor && author ? ` - ${author}` : ''}`;
@@ -575,6 +577,17 @@ class BodyUtility {
      */
     addCheckbox(withCheckbox, checkedItems, target) {
         return withCheckbox ? (checkedItems.includes(target) ? '[x] ' : '[ ] ') : '';
+    }
+    /**
+     * This function removes duplicates from an array of objects based on a specific property.
+     * @param {PrEntryWithRelatedIssues[]} arrayOfPRs - An array of objects of type
+     * `PrEntryWithRelatedIssues` which contains information about pull requests and related issues.
+     * @returns The `removeDuplicates` function is returning an array of `PrEntryWithRelatedIssues`
+     * objects with duplicates removed. It uses the `Map` object to filter out duplicate objects based on
+     * their `id` property.
+     */
+    removeDuplicates(arrayOfPRs) {
+        return [...new Map(arrayOfPRs.map(item => [item.id, item])).values()];
     }
 }
 exports.BodyUtility = BodyUtility;
