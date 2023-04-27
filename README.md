@@ -136,6 +136,13 @@ Resolves enzorenz/pr-notes#1234
       <td align="center"><code>test, fix</code></td>
     </tr>
     <tr>
+      <td align="center">reviewers</td>
+      <td align="center">Reviewers to request to the PR (comma separated)</td>
+      <td align="center">N/A</td>
+      <td align="center">false</td>
+      <td align="center"><code>username1, username2</code></td>
+    </tr>
+    <tr>
       <td align="center">assignees</td>
       <td align="center">Assignees to add to the PR (comma separated)</td>
       <td align="center">N/A</td>

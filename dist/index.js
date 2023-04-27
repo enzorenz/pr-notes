@@ -107,13 +107,13 @@ function run() {
             const body = yield bodyUtility.compose(input.sourceBranch, input.targetBranch, (_a = prDetail === null || prDetail === void 0 ? void 0 : prDetail.body) !== null && _a !== void 0 ? _a : '', input.body, input.resolveLineKeyword, input.listTitle, input.excludeKeywords, input.commitTypeGrouping, input.withAuthor, input.withCheckbox);
             if (prDetail) {
                 core.info('Updating Pull Request...');
-                const pull = yield prUtility.update(prDetail.number, body);
+                const pull = yield prUtility.update(prDetail.number, body, input.reviewers);
                 core.info(`🎉 Pull Request updated: ${pull.html_url} (#${pull.number})`);
                 core.setOutput('pr-number', pull.number);
             }
             else {
                 core.info('Creating new Pull Request...');
-                const pull = yield prUtility.create(targetBranch, input.sourceBranch, input.draft, input.title, body, input.labels, input.assignees);
+                const pull = yield prUtility.create(targetBranch, input.sourceBranch, input.draft, input.title, body, input.labels, input.reviewers, input.assignees);
                 const prNumber = pull.number;
                 core.info(`🎉 Pull Request created: ${pull.html_url} (#${prNumber})`);
                 core.setOutput('pr-number', prNumber);
@@ -187,6 +187,7 @@ class Input {
         this.resolveLineKeyword = core.getInput('resolve-line-keyword');
         this.listTitle = core.getInput('list-title');
         this.labels = convertInputToArray('labels');
+        this.reviewers = convertInputToArray('reviewers');
         this.assignees = convertInputToArray('assignees');
         this.commitTypeGrouping =
             ((_b = core.getInput('commit-type-grouping')) !== null && _b !== void 0 ? _b : '').toLowerCase() === 'true';
@@ -490,7 +491,7 @@ class BodyUtility {
      * have a PR with a title that starts with the corresponding commit type prefix. If an
      */
     groupByCommitType(issuesObject) {
-        var _a, _b, _c, _d, _e;
+        var _a, _b, _c, _d, _e, _f;
         // Group issues by commit type of first PR title that has prefix
         core.info('Grouping issues by commit type of first PR title with prefix...');
         const commitTypesObject = {};
@@ -499,36 +500,36 @@ class BodyUtility {
         for (const issue in issuesObject) {
             const isNoIssue = issue === 'no-issue';
             for (const [idx, pr] of issuesObject[issue].entries()) {
-                const prTitle = pr.title;
+                const prTitle = (_a = pr.title) !== null && _a !== void 0 ? _a : '';
                 let isDone = false;
                 // Loop through COMMIT_TYPES object and check if prTitle starts with a key in COMMIT_TYPES
                 for (const prefix in constants_1.COMMIT_TYPES) {
-                    if (prTitle.startsWith(prefix)) {
+                    if (prTitle.toLowerCase().startsWith(prefix)) {
                         if (isNoIssue) {
                             if (commitTypesObject[constants_1.COMMIT_TYPES[prefix]] &&
                                 commitTypesObject[constants_1.COMMIT_TYPES[prefix]][issue]) {
                                 commitTypesObject[constants_1.COMMIT_TYPES[prefix]][issue].push(pr);
                             }
                             else {
-                                commitTypesObject[constants_1.COMMIT_TYPES[prefix]] = Object.assign(Object.assign({}, ((_a = commitTypesObject[constants_1.COMMIT_TYPES[prefix]]) !== null && _a !== void 0 ? _a : {})), { [issue]: [pr] });
+                                commitTypesObject[constants_1.COMMIT_TYPES[prefix]] = Object.assign(Object.assign({}, ((_b = commitTypesObject[constants_1.COMMIT_TYPES[prefix]]) !== null && _b !== void 0 ? _b : {})), { [issue]: [pr] });
                             }
                         }
                         else {
-                            commitTypesObject[constants_1.COMMIT_TYPES[prefix]] = Object.assign(Object.assign({}, ((_b = commitTypesObject[constants_1.COMMIT_TYPES[prefix]]) !== null && _b !== void 0 ? _b : {})), { [issue]: issuesObject[issue] });
+                            commitTypesObject[constants_1.COMMIT_TYPES[prefix]] = Object.assign(Object.assign({}, ((_c = commitTypesObject[constants_1.COMMIT_TYPES[prefix]]) !== null && _c !== void 0 ? _c : {})), { [issue]: issuesObject[issue] });
                         }
                         isDone = true;
                         break;
                     }
                     else if (idx !== issuesObject[issue].length - 1 &&
                         isNoIssue &&
-                        !commitPrefixes.some(key => prTitle.startsWith(key))) {
+                        !commitPrefixes.some(key => prTitle.toLowerCase().startsWith(key))) {
                         // If prTitle doesn't start with any of the keys in COMMIT_TYPES
                         if (commitTypesObject[constants_1.COMMIT_TYPES.other] &&
                             commitTypesObject[constants_1.COMMIT_TYPES.other][issue]) {
                             commitTypesObject[constants_1.COMMIT_TYPES.other][issue].push(pr);
                         }
                         else {
-                            commitTypesObject[constants_1.COMMIT_TYPES.other] = Object.assign(Object.assign({}, ((_c = commitTypesObject[constants_1.COMMIT_TYPES.other]) !== null && _c !== void 0 ? _c : {})), { [issue]: [pr] });
+                            commitTypesObject[constants_1.COMMIT_TYPES.other] = Object.assign(Object.assign({}, ((_d = commitTypesObject[constants_1.COMMIT_TYPES.other]) !== null && _d !== void 0 ? _d : {})), { [issue]: [pr] });
                         }
                         isDone = true;
                         break;
@@ -551,11 +552,11 @@ class BodyUtility {
                             commitTypesObject[constants_1.COMMIT_TYPES.other][issue].push(pr);
                         }
                         else {
-                            commitTypesObject[constants_1.COMMIT_TYPES.other] = Object.assign(Object.assign({}, ((_d = commitTypesObject[constants_1.COMMIT_TYPES.other]) !== null && _d !== void 0 ? _d : {})), { [issue]: [pr] });
+                            commitTypesObject[constants_1.COMMIT_TYPES.other] = Object.assign(Object.assign({}, ((_e = commitTypesObject[constants_1.COMMIT_TYPES.other]) !== null && _e !== void 0 ? _e : {})), { [issue]: [pr] });
                         }
                     }
                     else {
-                        commitTypesObject[constants_1.COMMIT_TYPES.other] = Object.assign(Object.assign({}, ((_e = commitTypesObject[constants_1.COMMIT_TYPES.other]) !== null && _e !== void 0 ? _e : {})), { [issue]: issuesObject[issue] });
+                        commitTypesObject[constants_1.COMMIT_TYPES.other] = Object.assign(Object.assign({}, ((_f = commitTypesObject[constants_1.COMMIT_TYPES.other]) !== null && _f !== void 0 ? _f : {})), { [issue]: issuesObject[issue] });
                     }
                 }
             }
@@ -773,20 +774,26 @@ class PullRequestUtility {
             return prs.pop();
         });
     }
-    update(prNumber, body) {
+    update(prNumber, body, reviewers) {
         return __awaiter(this, void 0, void 0, function* () {
             core.debug(`Updating PR...`);
             const pr = (yield this.octokit.rest.pulls.update(Object.assign(Object.assign({}, github.context.repo), { pull_number: prNumber, body }))).data;
+            if (reviewers && reviewers.length > 0) {
+                yield this.requestPrReviewers(prNumber, reviewers);
+            }
             return pr;
         });
     }
-    create(targetBranch, sourceBranch, draft, title, body, labels, assignees) {
+    create(targetBranch, sourceBranch, draft, title, body, labels, reviewers, assignees) {
         return __awaiter(this, void 0, void 0, function* () {
             core.debug(`Creating PR "${title}"...`);
             const pullRequest = (yield this.octokit.rest.pulls.create(Object.assign(Object.assign({}, github.context.repo), { draft,
                 title, head: sourceBranch, base: targetBranch, body }))).data;
             if (labels && labels.length) {
                 yield this.addPrLabels(pullRequest.number, labels);
+            }
+            if (reviewers && reviewers.length > 0) {
+                yield this.requestPrReviewers(pullRequest.number, reviewers);
             }
             if (assignees && assignees.length > 0) {
                 yield this.addPrAssignees(pullRequest.number, assignees);
@@ -798,6 +805,12 @@ class PullRequestUtility {
         return __awaiter(this, void 0, void 0, function* () {
             core.debug(`Adding ${labels.length} Labels to PR: ${labels.toString()}...`);
             yield this.octokit.rest.issues.addLabels(Object.assign(Object.assign({}, github.context.repo), { issue_number: prNumber, labels }));
+        });
+    }
+    requestPrReviewers(prNumber, reviewers) {
+        return __awaiter(this, void 0, void 0, function* () {
+            core.debug(`Requesting ${reviewers.length} Reviewers to PR: ${reviewers.toString()}...`);
+            yield this.octokit.rest.pulls.requestReviewers(Object.assign(Object.assign({}, github.context.repo), { pull_number: prNumber, reviewers }));
         });
     }
     addPrAssignees(prNumber, assignees) {

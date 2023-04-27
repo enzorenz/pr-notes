@@ -351,12 +351,12 @@ export class BodyUtility {
       const isNoIssue = issue === 'no-issue'
 
       for (const [idx, pr] of issuesObject[issue].entries()) {
-        const prTitle = pr.title
+        const prTitle = pr.title ?? ''
         let isDone = false
 
         // Loop through COMMIT_TYPES object and check if prTitle starts with a key in COMMIT_TYPES
         for (const prefix in COMMIT_TYPES) {
-          if (prTitle.startsWith(prefix)) {
+          if (prTitle.toLowerCase().startsWith(prefix)) {
             if (isNoIssue) {
               if (
                 commitTypesObject[COMMIT_TYPES[prefix]] &&
@@ -380,7 +380,7 @@ export class BodyUtility {
           } else if (
             idx !== issuesObject[issue].length - 1 &&
             isNoIssue &&
-            !commitPrefixes.some(key => prTitle.startsWith(key))
+            !commitPrefixes.some(key => prTitle.toLowerCase().startsWith(key))
           ) {
             // If prTitle doesn't start with any of the keys in COMMIT_TYPES
             if (

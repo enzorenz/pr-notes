@@ -33,6 +33,9 @@ inputs:
   labels:
     description: 'Labels to add to the PR (comma separated)'
     required: false
+  reviewers:
+    description: 'Reviewers to request to the PR (comma separated)'
+    required: false
   assignees:
     description: 'Assignees to add to the PR (comma separated)'
     required: false

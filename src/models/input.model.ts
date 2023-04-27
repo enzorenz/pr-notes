@@ -10,6 +10,7 @@ export class Input {
   resolveLineKeyword: string
   listTitle: string
   labels: string[]
+  reviewers: string[]
   assignees: string[]
   commitTypeGrouping: boolean
   excludeKeywords: string[]
@@ -26,6 +27,7 @@ export class Input {
     this.resolveLineKeyword = core.getInput('resolve-line-keyword')
     this.listTitle = core.getInput('list-title')
     this.labels = convertInputToArray('labels')
+    this.reviewers = convertInputToArray('reviewers')
     this.assignees = convertInputToArray('assignees')
     this.commitTypeGrouping =
       (core.getInput('commit-type-grouping') ?? '').toLowerCase() === 'true'

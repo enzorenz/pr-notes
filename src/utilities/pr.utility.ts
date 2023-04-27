@@ -30,7 +30,11 @@ export class PullRequestUtility {
     return prs.pop()
   }
 
-  async update(prNumber: number, body?: string): Promise<PullRequest> {
+  async update(
+    prNumber: number,
+    body?: string,
+    reviewers?: string[]
+  ): Promise<PullRequest> {
     core.debug(`Updating PR...`)
     const pr = (
       await this.octokit.rest.pulls.update({
@@ -39,6 +43,10 @@ export class PullRequestUtility {
         body
       })
     ).data
+
+    if (reviewers && reviewers.length > 0) {
+      await this.requestPrReviewers(prNumber, reviewers)
+    }
 
     return pr
   }
@@ -50,6 +58,7 @@ export class PullRequestUtility {
     title: string,
     body?: string,
     labels?: string[],
+    reviewers?: string[],
     assignees?: string[]
   ): Promise<PullRequest> {
     core.debug(`Creating PR "${title}"...`)
@@ -68,6 +77,10 @@ export class PullRequestUtility {
       await this.addPrLabels(pullRequest.number, labels)
     }
 
+    if (reviewers && reviewers.length > 0) {
+      await this.requestPrReviewers(pullRequest.number, reviewers)
+    }
+
     if (assignees && assignees.length > 0) {
       await this.addPrAssignees(pullRequest.number, assignees)
     }
@@ -81,6 +94,23 @@ export class PullRequestUtility {
       ...github.context.repo,
       issue_number: prNumber,
       labels
+    })
+  }
+
+  private async requestPrReviewers(
+    prNumber: number,
+    reviewers: string[]
+  ): Promise<void> {
+    core.debug(
+      `Requesting ${
+        reviewers.length
+      } Reviewers to PR: ${reviewers.toString()}...`
+    )
+
+    await this.octokit.rest.pulls.requestReviewers({
+      ...github.context.repo,
+      pull_number: prNumber,
+      reviewers
     })
   }
 

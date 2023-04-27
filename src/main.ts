@@ -60,7 +60,11 @@ async function run(): Promise<void> {
 
     if (prDetail) {
       core.info('Updating Pull Request...')
-      const pull = await prUtility.update(prDetail.number, body)
+      const pull = await prUtility.update(
+        prDetail.number,
+        body,
+        input.reviewers
+      )
       core.info(`🎉 Pull Request updated: ${pull.html_url} (#${pull.number})`)
       core.setOutput('pr-number', pull.number)
     } else {
@@ -72,6 +76,7 @@ async function run(): Promise<void> {
         input.title,
         body,
         input.labels,
+        input.reviewers,
         input.assignees
       )
       const prNumber = pull.number
