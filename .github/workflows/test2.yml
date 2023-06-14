@@ -15,7 +15,7 @@ jobs:
           source-branch: test-only
           target-branch: main
           draft: true
-          title: TEST PR ONLY (created by action)
+          title: ':gear: TEST PR ONLY (created by action)'
           reviewers: enzorenz
           commit-type-grouping: true
           with-author: true
