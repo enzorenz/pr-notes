@@ -13,17 +13,17 @@ on:
 env:
   NODE_VERSION: 18.18.2
   NODE_ENV: test
-  DATABASE_HOST: postgres
-  DATABASE_PORT: 5432
-  DATABASE_NAME: athletics
-  DATABASE_USERNAME: athletics
-  DATABASE_PASSWORD: thepassword
-  TEST_DATABASE_HOST: postgres
+  # DATABASE_HOST: postgres
+  # DATABASE_PORT: 5432
+  # DATABASE_NAME: athletics
+  # DATABASE_USERNAME: athletics
+  # DATABASE_PASSWORD: thepassword
+  TEST_DATABASE_HOST: 127.0.0.1
   TEST_DATABASE_PORT: 5432
   TEST_DATABASE_NAME: athletics
   TEST_DATABASE_USERNAME: athletics
   TEST_DATABASE_PASSWORD: thepassword
-  CACHE_HOST: redis
+  CACHE_HOST: localhost
   CACHE_PORT: 6379
   APPLICATION_LOG_LEVEL: error
 
@@ -67,10 +67,10 @@ jobs:
           key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
 
       # For debugging purposes https://github.com/mxschmitt/action-tmate
-      # - name: Install tmate for SSH debugging
-      #   uses: mxschmitt/action-tmate@v3
-      #   with:
-      #     limit-access-to-actor: true
+      - name: Install tmate for SSH debugging
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
 
       - name: Install golang-migrate
         run: |
