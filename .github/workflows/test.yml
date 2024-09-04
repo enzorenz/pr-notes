@@ -16,10 +16,6 @@ jobs:
   e2e-test:
     runs-on: ubuntu-latest
     container: node:18.18
-    strategy:
-      matrix:
-        test-dir: ['./test/organization-pt1']
-        output-dir: ['e2e-organization-pt1']
 
     services:
       postgres:
@@ -47,27 +43,27 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
 
-    - name: Install golang-migrate
-      run: |
-        curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.2/migrate.linux-amd64.tar.gz | tar xvz
-        mv migrate /usr/local/bin/migrate
+    # - name: Install golang-migrate
+    #   run: |
+    #     curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.2/migrate.linux-amd64.tar.gz | tar xvz
+    #     mv migrate /usr/local/bin/migrate
 
-    - name: Install Java
-      run: |
-        apt-get update && apt-get install openjdk-17-jdk-headless -y
-        java -version
+    # - name: Install Java
+    #   run: |
+    #     apt-get update && apt-get install openjdk-17-jdk-headless -y
+    #     java -version
 
     - name: Install PostgreSQL client
       run: |
         apt-get update && apt-get install -y postgresql-client
 
-    - name: Wait for PostgreSQL to be ready
-      run: |
-        for i in {1..10}; do
-          pg_isready -h ${{ env.TEST_DATABASE_HOST }} -p ${{ env.TEST_DATABASE_PORT }} -U ${{ env.TEST_DATABASE_USERNAME }} && break
-          echo "Waiting for PostgreSQL to be ready..."
-          sleep 5
-        done
+    # - name: Wait for PostgreSQL to be ready
+    #   run: |
+    #     for i in {1..10}; do
+    #       pg_isready -h ${{ env.TEST_DATABASE_HOST }} -p ${{ env.TEST_DATABASE_PORT }} -U ${{ env.TEST_DATABASE_USERNAME }} && break
+    #       echo "Waiting for PostgreSQL to be ready..."
+    #       sleep 5
+    #     done
 
     - name: Install tmate for SSH debugging
       uses: mxschmitt/action-tmate@v3
