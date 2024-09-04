@@ -1,0 +1,84 @@
+name: E2E Tests Tempalte
+
+on:
+  workflow_call:
+    inputs:
+      test_path:
+        required: true
+        type: string
+      junit_output_dir:
+        required: true
+        type: string
+
+env:
+  NODE_VERSION: 18.18.2
+  NODE_ENV: test
+  DATABASE_HOST: postgres
+  DATABASE_PORT: 5432
+  DATABASE_NAME: athletics
+  DATABASE_USERNAME: athletics
+  DATABASE_PASSWORD: thepassword
+  TEST_DATABASE_HOST: postgres
+  TEST_DATABASE_PORT: 5432
+  TEST_DATABASE_NAME: athletics
+  TEST_DATABASE_USERNAME: athletics
+  TEST_DATABASE_PASSWORD: thepassword
+  CACHE_HOST: redis
+  CACHE_PORT: 6379
+  APPLICATION_LOG_LEVEL: error
+
+jobs:
+  run-e2e-tests:
+    runs-on: ubuntu-latest
+    container: node:18.18
+
+    services:
+      postgres:
+        image: postgres:13.14
+        env:
+          POSTGRES_USER: athletics
+          POSTGRES_PASSWORD: thepassword
+          POSTGRES_DB: athletics
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:5.0.14
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Restore cache
+        id: yarn-cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./node_modules
+            /usr/local/share/.cache/yarn/v4
+          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+
+      # For debugging purposes https://github.com/mxschmitt/action-tmate
+      # - name: Install tmate for SSH debugging
+      #   uses: mxschmitt/action-tmate@v3
+      #   with:
+      #     limit-access-to-actor: true
+
+      - name: Install golang-migrate
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.2/migrate.linux-amd64.tar.gz | tar xvz
+          sudo mv migrate /usr/local/bin/migrate
+
+      - name: Install Java
+        run: |
+          sudo apt-get update && sudo apt-get install openjdk-17-jdk-headless -y
+          java -version

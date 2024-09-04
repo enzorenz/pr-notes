@@ -5,67 +5,47 @@ on: push
 env:
   NODE_VERSION: 18.18.2
   NODE_ENV: test
-  TEST_DATABASE_HOST: postgres
-  TEST_DATABASE_PORT: 5432
-  TEST_DATABASE_NAME: athletics
-  TEST_DATABASE_USERNAME: athletics
-  TEST_DATABASE_PASSWORD: thepassword
-  APPLICATION_LOG_LEVEL: error
 
 jobs:
-  e2e-test:
+  checkout-lint:
     runs-on: ubuntu-latest
-    container: node:18.18
-
-    services:
-      postgres:
-        image: postgres:13.14
-        env:
-          POSTGRES_USER: athletics
-          POSTGRES_PASSWORD: thepassword
-          POSTGRES_DB: athletics
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:5.0.14
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
+  
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
-    - name: Use Node.js ${{ env.NODE_VERSION }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
+      - name: Restore cache
+        id: yarn-cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./node_modules
+            /usr/local/share/.cache/yarn/v4
+          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
 
-    # - name: Install golang-migrate
-    #   run: |
-    #     curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.2/migrate.linux-amd64.tar.gz | tar xvz
-    #     mv migrate /usr/local/bin/migrate
+      - name: GITHUB NPM package token setup
+        run: echo "//npm.pkg.github.com/:_authToken=${TOKEN}" > ~/.npmrc
+        env:
+          TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 
-    # - name: Install Java
-    #   run: |
-    #     apt-get update && apt-get install openjdk-17-jdk-headless -y
-    #     java -version
+      - name: Install dependencies
+        run: yarn
 
-    - name: Install PostgreSQL client
-      run: |
-        apt-get update && apt-get install -y postgresql-client
+      - name: Save cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./node_modules
+            /usr/local/share/.cache/yarn/v4
+          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
 
-    - name: Wait for PostgreSQL to be ready
-      run: |
-        for i in {1..10}; do
-          pg_isready -h ${{ env.TEST_DATABASE_HOST }} -p ${{ env.TEST_DATABASE_PORT }} -U ${{ env.TEST_DATABASE_USERNAME }} && break
-          echo "Waiting for PostgreSQL to be ready..."
-          sleep 5
-        done
-
-    - name: Install tmate for SSH debugging
-      uses: mxschmitt/action-tmate@v3
-      with:
-        limit-access-to-actor: true
+  test-e2e-organization-pt1:
+    needs: checkout-lint
+    uses: ./.github/workflows/e2e-tests-template.yml
+    with:
+      test_path: ./test/organization-pt1
+      junit_output_dir: test-results/e2e-organization-pt1
