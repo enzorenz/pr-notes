@@ -5,7 +5,7 @@ on: push
 env:
   NODE_VERSION: 18.18.2
   NODE_ENV: test
-  TEST_DATABASE_HOST: 127.0.0.1
+  TEST_DATABASE_HOST: postgres
   TEST_DATABASE_PORT: 5432
   TEST_DATABASE_NAME: athletics
   TEST_DATABASE_USERNAME: athletics
@@ -57,13 +57,13 @@ jobs:
       run: |
         apt-get update && apt-get install -y postgresql-client
 
-    # - name: Wait for PostgreSQL to be ready
-    #   run: |
-    #     for i in {1..10}; do
-    #       pg_isready -h ${{ env.TEST_DATABASE_HOST }} -p ${{ env.TEST_DATABASE_PORT }} -U ${{ env.TEST_DATABASE_USERNAME }} && break
-    #       echo "Waiting for PostgreSQL to be ready..."
-    #       sleep 5
-    #     done
+    - name: Wait for PostgreSQL to be ready
+      run: |
+        for i in {1..10}; do
+          pg_isready -h ${{ env.TEST_DATABASE_HOST }} -p ${{ env.TEST_DATABASE_PORT }} -U ${{ env.TEST_DATABASE_USERNAME }} && break
+          echo "Waiting for PostgreSQL to be ready..."
+          sleep 5
+        done
 
     - name: Install tmate for SSH debugging
       uses: mxschmitt/action-tmate@v3
