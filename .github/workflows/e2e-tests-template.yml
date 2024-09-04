@@ -30,6 +30,7 @@ env:
 jobs:
   run-e2e-tests:
     runs-on: ubuntu-latest
+    container: node:18.18
 
     services:
       postgres:

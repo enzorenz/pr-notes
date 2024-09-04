@@ -9,6 +9,7 @@ env:
 jobs:
   checkout-lint:
     runs-on: ubuntu-latest
+    container: node:18.18
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -36,6 +37,7 @@ jobs:
         run: yarn
 
       - name: Save cache
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
         uses: actions/cache@v3
         with:
           path: |
