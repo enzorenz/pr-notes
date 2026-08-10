@@ -196,3 +196,4 @@ Resolves enzorenz/pr-notes#1234
 ```
 
 test-branch-mon
+test-new-pr-checklist
