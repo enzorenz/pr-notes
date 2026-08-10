@@ -1,7 +1,14 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
-import {Octokit, PullRequest} from '../types'
+import {Octokit} from '../types'
+
+type PrData = {
+  number: number
+  html_url: string
+  body?: string | null
+  [key: string]: unknown
+}
 
 export class PullRequestUtility {
   private octokit: Octokit
@@ -13,7 +20,7 @@ export class PullRequestUtility {
   async getDetail(
     targetBranch: string,
     sourceBranch: string
-  ): Promise<PullRequest | undefined> {
+  ): Promise<PrData | undefined> {
     core.debug(
       `Looking up pull request with source branch: "${sourceBranch}" and target branch: "${targetBranch}"...`
     )
@@ -24,17 +31,18 @@ export class PullRequestUtility {
         base: targetBranch,
         head: `${github.context.repo.owner}:${sourceBranch}`
       })
-    ).data as PullRequest[]
+    ).data
 
     core.debug(`Found ${prs.length} matches.`)
-    return prs.pop()
+    const pr = prs.at(-1) as PrData | undefined
+    return pr
   }
 
   async update(
     prNumber: number,
     body?: string,
     reviewers?: string[]
-  ): Promise<PullRequest> {
+  ): Promise<PrData> {
     core.debug(`Updating PR...`)
     const pr = (
       await this.octokit.rest.pulls.update({
@@ -60,7 +68,7 @@ export class PullRequestUtility {
     labels?: string[],
     reviewers?: string[],
     assignees?: string[]
-  ): Promise<PullRequest> {
+  ): Promise<PrData> {
     core.debug(`Creating PR "${title}"...`)
     const pullRequest = (
       await this.octokit.rest.pulls.create({

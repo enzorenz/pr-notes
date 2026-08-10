@@ -55,5 +55,5 @@ inputs:
     default: 'false'
     required: false
 runs:
-  using: 'node16'
+  using: 'node24'
   main: 'dist/index.js'

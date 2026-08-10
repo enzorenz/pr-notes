@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
-import {Octokit, Commit, PrEntry, PrEntryWithRelatedIssues} from '../types'
+import {Octokit, PrEntry, PrEntryWithRelatedIssues} from '../types'
 import {COMMIT_TYPES} from '../constants'
 
 const urlRegex =
@@ -246,7 +246,7 @@ export class BodyUtility {
       base: targetBranch
     })
 
-    return resp.data.commits.map((entry: Commit) => entry.sha)
+    return resp.data.commits.map(entry => entry.sha)
   }
 
   /**
@@ -325,7 +325,8 @@ export class BodyUtility {
   private formatIssueLinksToHashtag(links: string[]): string[] {
     return links.map(link => {
       const issue = link.match(/issues\/\d*/) ?? []
-      return `#${issue[0]?.split('/')[1]}` ?? ''
+      const num = issue[0]?.split('/')[1]
+      return num ? `#${num}` : ''
     })
   }
 

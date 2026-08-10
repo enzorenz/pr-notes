@@ -29,7 +29,7 @@ jobs:
   your-job-name
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: enzorenz/pr-notes@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
