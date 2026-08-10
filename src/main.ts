@@ -55,7 +55,8 @@ async function run(): Promise<void> {
       input.excludeKeywords,
       input.commitTypeGrouping,
       input.withAuthor,
-      input.withCheckbox
+      input.withCheckbox,
+      input.postReleaseChecklistTitle
     )
 
     if (prDetail) {

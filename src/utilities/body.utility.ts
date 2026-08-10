@@ -59,7 +59,8 @@ export class BodyUtility {
     excludeKeywords: string[],
     commitTypeGrouping: boolean,
     withAuthor: boolean,
-    withCheckbox: boolean
+    withCheckbox: boolean,
+    postReleaseChecklistTitle: string
   ): Promise<string> {
     core.info(
       `Retrieving PR links for all diffs between head ${sourceBranch} and base ${targetBranch}...`
@@ -164,7 +165,12 @@ export class BodyUtility {
         }
       }
 
-      return bodyWithChangelog
+      return this.appendReleaseChecklist(
+        bodyWithChangelog,
+        currentBody,
+        prsWithIssues,
+        postReleaseChecklistTitle
+      )
     }
 
     const commitTypesObject = this.groupByCommitType(issuesObject)
@@ -220,7 +226,12 @@ export class BodyUtility {
       }
     }
 
-    return bodyWithChangelog
+    return this.appendReleaseChecklist(
+      bodyWithChangelog,
+      currentBody,
+      prsWithIssues,
+      postReleaseChecklistTitle
+    )
   }
 
   /**
@@ -469,5 +480,118 @@ export class BodyUtility {
     arrayOfPRs: PrEntryWithRelatedIssues[]
   ): PrEntryWithRelatedIssues[] {
     return [...new Map(arrayOfPRs.map(item => [item.id, item])).values()]
+  }
+
+  /**
+   * Appends a post-release checklist section to the changelog body if items are found
+   * in the scanned PRs. Items are grouped under their originating PR.
+   * Checked state is persisted independently per PR instance from the current body.
+   */
+  private appendReleaseChecklist(
+    bodyWithChangelog: string,
+    currentBody: string,
+    prsWithIssues: Map<PrEntry, string[]>,
+    sectionTitle: string
+  ): string {
+    if (!sectionTitle) {
+      return bodyWithChangelog
+    }
+
+    const prItems: string[] = []
+    const itemsByPr = this.extractPostReleaseChecklistItems(
+      prsWithIssues,
+      sectionTitle
+    )
+
+    for (const [, items] of itemsByPr) {
+      prItems.push(...items)
+    }
+
+    if (prItems.length === 0) {
+      return bodyWithChangelog
+    }
+
+    // Scan current body's release checklist section for checked items scoped by PR.
+    // Key format: "prIdentifier::itemText" for independent per-PR checkbox state.
+    const checkedItems = new Set<string>()
+    const currentLines = currentBody.split('\n')
+    let inSection = false
+    let currentPrKey = ''
+    for (const line of currentLines) {
+      if (line.trim() === `## ${sectionTitle}`) {
+        inSection = true
+        continue
+      }
+      if (inSection) {
+        if (/^#{1,2}\s/.test(line)) {
+          break
+        }
+        // Track PR group context: "- #N" or "- https://..." header
+        const prHeaderMatch = line.match(/^-\s+(#\d+|https?:\/\/\S+)/)
+        if (prHeaderMatch) {
+          currentPrKey = prHeaderMatch[1]
+          continue
+        }
+        const checkedMatch = line.match(/^\s{2}-\s*\[x\]\s*(.+)/)
+        if (checkedMatch && currentPrKey) {
+          checkedItems.add(`${currentPrKey}::${checkedMatch[1].trim()}`)
+        }
+      }
+    }
+
+    bodyWithChangelog += `\n\n## ${sectionTitle}`
+    for (const [pr, items] of itemsByPr) {
+      const prIdentifier = pr.number ? `#${pr.number}` : pr.html_url
+      bodyWithChangelog += `\n- ${prIdentifier}`
+      for (const item of items) {
+        const isChecked = checkedItems.has(`${prIdentifier}::${item}`)
+        bodyWithChangelog += `\n  - [${isChecked ? 'x' : ' '}] ${item}`
+      }
+    }
+
+    return bodyWithChangelog
+  }
+
+  /**
+   * Scans PR bodies for a section matching the given title and extracts all list items
+   * grouped by their originating PR. Stops extraction at the next heading (# or ##).
+   * Items are NOT deduplicated across PRs — each PR's items are preserved independently.
+   */
+  private extractPostReleaseChecklistItems(
+    prsWithIssues: Map<PrEntry, string[]>,
+    sectionTitle: string
+  ): Map<PrEntry, string[]> {
+    const result = new Map<PrEntry, string[]>()
+
+    for (const pr of prsWithIssues.keys()) {
+      const body = pr.body ?? ''
+      if (!body) continue
+
+      const items: string[] = []
+      const lines = body.split('\n')
+      let inSection = false
+      for (const line of lines) {
+        if (line.trim() === `## ${sectionTitle}`) {
+          inSection = true
+          continue
+        }
+        if (inSection) {
+          if (/^#{1,2}\s/.test(line)) {
+            break
+          }
+          // Extract list items: "- item" or "- [x] item" or "- [ ] item"
+          const match = line.match(/^\s*-\s+(?:\[[ x]\]\s+)?(.+)/)
+          if (match) {
+            items.push(match[1].trim())
+          }
+        }
+      }
+
+      if (items.length > 0) {
+        result.set(pr, items)
+      }
+    }
+
+    return result
   }
 }

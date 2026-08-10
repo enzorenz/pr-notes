@@ -16,6 +16,7 @@ export class Input {
   excludeKeywords: string[]
   withAuthor: boolean
   withCheckbox: boolean
+  postReleaseChecklistTitle: string
 
   constructor() {
     this.token = core.getInput('token', {required: true})
@@ -36,6 +37,9 @@ export class Input {
       (core.getInput('with-author') ?? '').toLowerCase() === 'true'
     this.withCheckbox =
       (core.getInput('with-checkbox') ?? '').toLowerCase() === 'true'
+    this.postReleaseChecklistTitle = core.getInput(
+      'post-release-checklist-title'
+    )
 
     core.setSecret(this.token)
   }

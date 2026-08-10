@@ -54,6 +54,10 @@ inputs:
     description: 'Adds a checkbox to changelog main items making it a checklist'
     default: 'false'
     required: false
+  post-release-checklist-title:
+    description: 'Heading title for aggregating post-release checklist items from merged PRs (set to empty to disable)'
+    default: 'Post-Release Checklist'
+    required: false
 runs:
   using: 'node24'
   main: 'dist/index.js'

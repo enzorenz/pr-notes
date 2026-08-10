@@ -259,3 +259,397 @@ describe('groupByCommitType', () => {
     expect(result[COMMIT_TYPES.other]['no-issue']).toHaveLength(1)
   })
 })
+
+describe('extractPostReleaseChecklistItems', () => {
+  const utility = makeUtility()
+
+  function makePrEntryWithBody(
+    id: number,
+    title: string,
+    body: string | null,
+    htmlUrl?: string
+  ): PrEntryWithRelatedIssues {
+    const pr = makePr(id, title, htmlUrl)
+    return {...pr, body} as unknown as PrEntryWithRelatedIssues
+  }
+
+  function getItemsForPr(
+    result: Map<PrEntryWithRelatedIssues, string[]>,
+    prId: number
+  ): string[] {
+    for (const [pr, items] of result) {
+      if (pr.id === prId) return items
+    }
+    return []
+  }
+
+  it('extracts checkbox items from a matching section, grouped by PR', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: something',
+        '## Post-Release Checklist\n- [ ] Notify the team\n- [ ] Update docs'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).extractPostReleaseChecklistItems(
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result.size).toBe(1)
+    expect(getItemsForPr(result, 1)).toEqual([
+      'Notify the team',
+      'Update docs'
+    ])
+  })
+
+  it('extracts plain bullets (not just checkboxes)', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: something',
+        '## Post-Release Checklist\n- Do this\n- [x] Do that\n- Also this'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).extractPostReleaseChecklistItems(
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(getItemsForPr(result, 1)).toEqual(['Do this', 'Do that', 'Also this'])
+  })
+
+  it('stops extraction at the next ## heading', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: something',
+        '## Post-Release Checklist\n- Item 1\n## Other Section\n- Should not appear'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).extractPostReleaseChecklistItems(
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(getItemsForPr(result, 1)).toEqual(['Item 1'])
+  })
+
+  it('stops at # heading as well', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: something',
+        '## Post-Release Checklist\n- Item 1\n# Top Level\n- Should not appear'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).extractPostReleaseChecklistItems(
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(getItemsForPr(result, 1)).toEqual(['Item 1'])
+  })
+
+  it('ignores PR bodies without the section', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: something',
+        '## Changelog\n- Some item'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).extractPostReleaseChecklistItems(
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result.size).toBe(0)
+  })
+
+  it('keeps duplicate items from different PRs (no dedup)', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: a',
+        '## Post-Release Checklist\n- Notify team\n- Update docs'
+      ),
+      []
+    )
+    prMap.set(
+      makePrEntryWithBody(
+        2,
+        'feat: b',
+        '## Post-Release Checklist\n- Notify team\n- Run migrations'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).extractPostReleaseChecklistItems(
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result.size).toBe(2)
+    expect(getItemsForPr(result, 1)).toEqual(['Notify team', 'Update docs'])
+    expect(getItemsForPr(result, 2)).toEqual(['Notify team', 'Run migrations'])
+  })
+
+  it('handles PRs with null body', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(makePrEntryWithBody(1, 'feat: something', null), [])
+    const result = (utility as AnyBodyUtility).extractPostReleaseChecklistItems(
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result.size).toBe(0)
+  })
+
+  it('handles empty Map', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    const result = (utility as AnyBodyUtility).extractPostReleaseChecklistItems(
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result.size).toBe(0)
+  })
+
+  it('skips PR that has the section but no list items', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: empty',
+        '## Post-Release Checklist\n\n## Next Section'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).extractPostReleaseChecklistItems(
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result.size).toBe(0)
+  })
+})
+
+describe('appendReleaseChecklist', () => {
+  const utility = makeUtility()
+
+  function makePrEntryWithBody(
+    id: number,
+    title: string,
+    body: string | null,
+    htmlUrl?: string
+  ): PrEntryWithRelatedIssues {
+    const pr = makePr(id, title, htmlUrl)
+    return {...pr, body} as unknown as PrEntryWithRelatedIssues
+  }
+
+  it('returns body unchanged when sectionTitle is empty', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    const result = (utility as AnyBodyUtility).appendReleaseChecklist(
+      'Existing body',
+      '',
+      prMap,
+      ''
+    )
+    expect(result).toBe('Existing body')
+  })
+
+  it('returns body unchanged when no items found in PRs', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(1, 'feat: x', '## Other\n- item'),
+      []
+    )
+    const result = (utility as AnyBodyUtility).appendReleaseChecklist(
+      'Existing body',
+      '',
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result).toBe('Existing body')
+  })
+
+  it('appends checklist section with items grouped under PR headers', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: x',
+        '## Post-Release Checklist\n- Notify team\n- Deploy'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).appendReleaseChecklist(
+      'Existing body',
+      '',
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result).toBe(
+      'Existing body\n\n## Post-Release Checklist\n- #1\n  - [ ] Notify team\n  - [ ] Deploy'
+    )
+  })
+
+  it('groups items from multiple PRs separately', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: a',
+        '## Post-Release Checklist\n- Task A'
+      ),
+      []
+    )
+    prMap.set(
+      makePrEntryWithBody(
+        2,
+        'fix: b',
+        '## Post-Release Checklist\n- Task B'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).appendReleaseChecklist(
+      'Existing body',
+      '',
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result).toBe(
+      'Existing body\n\n## Post-Release Checklist\n- #1\n  - [ ] Task A\n- #2\n  - [ ] Task B'
+    )
+  })
+
+  it('duplicate item text across PRs renders under each PR independently', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: a',
+        '## Post-Release Checklist\n- Notify team'
+      ),
+      []
+    )
+    prMap.set(
+      makePrEntryWithBody(
+        2,
+        'fix: b',
+        '## Post-Release Checklist\n- Notify team'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).appendReleaseChecklist(
+      'Existing body',
+      '',
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result).toBe(
+      'Existing body\n\n## Post-Release Checklist\n- #1\n  - [ ] Notify team\n- #2\n  - [ ] Notify team'
+    )
+  })
+
+  it('persists checked state independently per PR instance', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: a',
+        '## Post-Release Checklist\n- Notify team'
+      ),
+      []
+    )
+    prMap.set(
+      makePrEntryWithBody(
+        2,
+        'fix: b',
+        '## Post-Release Checklist\n- Notify team'
+      ),
+      []
+    )
+    // Only #2's instance is checked
+    const currentBody =
+      '## Post-Release Checklist\n- #1\n  - [ ] Notify team\n- #2\n  - [x] Notify team'
+    const result = (utility as AnyBodyUtility).appendReleaseChecklist(
+      'Existing body',
+      currentBody,
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result).toBe(
+      'Existing body\n\n## Post-Release Checklist\n- #1\n  - [ ] Notify team\n- #2\n  - [x] Notify team'
+    )
+  })
+
+  it('persists checked state from current body matching PR scoping', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: x',
+        '## Post-Release Checklist\n- Notify team\n- Deploy'
+      ),
+      []
+    )
+    const currentBody =
+      '## Post-Release Checklist\n- #1\n  - [x] Notify team\n  - [ ] Deploy'
+    const result = (utility as AnyBodyUtility).appendReleaseChecklist(
+      'Existing body',
+      currentBody,
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result).toBe(
+      'Existing body\n\n## Post-Release Checklist\n- #1\n  - [x] Notify team\n  - [ ] Deploy'
+    )
+  })
+
+  it('only scans checked items from within the release checklist section', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: x',
+        '## Post-Release Checklist\n- Release item'
+      ),
+      []
+    )
+    // Checked item outside the release checklist section should be ignored
+    const currentBody =
+      '- [x] Unrelated item\n## Post-Release Checklist\n- #1\n  - [ ] Release item'
+    const result = (utility as AnyBodyUtility).appendReleaseChecklist(
+      'Existing body',
+      currentBody,
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result).toBe(
+      'Existing body\n\n## Post-Release Checklist\n- #1\n  - [ ] Release item'
+    )
+  })
+
+  it('falls back to html_url when PR has no number', () => {
+    const pr = makePrEntryWithBody(
+      1,
+      'feat: x',
+      '## Post-Release Checklist\n- Task'
+    )
+    ;(pr as unknown as {number: number | null}).number = null
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(pr, [])
+    const result = (utility as AnyBodyUtility).appendReleaseChecklist(
+      'Existing body',
+      '',
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(result).toBe(
+      'Existing body\n\n## Post-Release Checklist\n- https://github.com/owner/repo/pull/1\n  - [ ] Task'
+    )
+  })
+})

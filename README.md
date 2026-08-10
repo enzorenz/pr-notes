@@ -6,13 +6,40 @@ If associated pull request is a resolution to an issue then that issue will be t
 
 ### Auto Generated Body
 
-<img width="689" alt="image" src="https://user-images.githubusercontent.com/42469290/230652349-78011c74-79ac-4d5c-868e-bc301e5fbe16.png">
+```
+## Summary
+This PR adds the new billing dashboard and fixes the login flow.
+
+### Changes
+- [ ] #123
+  - https://github.com/acme/app/pull/45 - jdoe
+- [x] #456
+  - https://github.com/acme/app/pull/47 - msmith
+
+## Features
+- [ ] #123
+  - https://github.com/acme/app/pull/45 - jdoe
+
+## Bug Fixes
+- [x] #456
+  - https://github.com/acme/app/pull/47 - msmith
+
+## Post-Release Checklist
+- #45
+  - [ ] Notify the team on Slack
+  - [ ] Update the API docs
+- #47
+  - [ ] Notify the team on Slack
+  - [x] Run database migrations
+```
 
 #### With Checkbox
 
 It also supports converting the changelog to a checklist. It can retain items that were already checked/unchecked and restore them when action reruns so no worries losing status.
 
-<img width="689" alt="image" src="https://user-images.githubusercontent.com/42469290/230721858-6a9483c9-2814-4582-92c4-06dcd5dabeb9.png">
+#### Post-Release Checklist
+
+Add a `## Post-Release Checklist` section to any merged PR body with list items. The action aggregates them into a grouped checklist at the bottom of the generated description — each PR's items are nested under its PR number, and checkbox state persists independently per PR instance. Customize the section title with the `post-release-checklist-title` input (set to empty to disable).
 
 ### Usage
 
@@ -176,6 +203,13 @@ Resolves enzorenz/pr-notes#1234
       <td align="center">false</td>
       <td align="center">false</td>
       <td align="center"><code>true</code></td>
+    </tr>
+    <tr>
+      <td align="center">post-release-checklist-title</td>
+      <td align="center">Heading title for aggregating post-release checklist items from merged PRs (set to empty to disable)</td>
+      <td align="center"><code>Post-Release Checklist</code></td>
+      <td align="center">false</td>
+      <td align="center"><code>My Checklist</code></td>
     </tr>
   </tbody>
 </table>
