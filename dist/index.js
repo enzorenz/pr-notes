@@ -634,20 +634,27 @@ class BodyUtility {
     }
     /**
      * Appends a post-release checklist section to the changelog body if items are found
-     * in the scanned PRs. Checked state is persisted from the current body.
+     * in the scanned PRs. Items are grouped under their originating PR.
+     * Checked state is persisted independently per PR instance from the current body.
      */
     appendReleaseChecklist(bodyWithChangelog, currentBody, prsWithIssues, sectionTitle) {
         if (!sectionTitle) {
             return bodyWithChangelog;
         }
-        const items = this.extractPostReleaseChecklistItems(prsWithIssues, sectionTitle);
-        if (items.length === 0) {
+        const prItems = [];
+        const itemsByPr = this.extractPostReleaseChecklistItems(prsWithIssues, sectionTitle);
+        for (const [, items] of itemsByPr) {
+            prItems.push(...items);
+        }
+        if (prItems.length === 0) {
             return bodyWithChangelog;
         }
-        // Scan current body's release checklist section for checked items
-        const checkedItems = [];
+        // Scan current body's release checklist section for checked items scoped by PR.
+        // Key format: "prIdentifier::itemText" for independent per-PR checkbox state.
+        const checkedItems = new Set();
         const currentLines = currentBody.split('\n');
         let inSection = false;
+        let currentPrKey = '';
         for (const line of currentLines) {
             if (line.trim() === `## ${sectionTitle}`) {
                 inSection = true;
@@ -657,29 +664,41 @@ class BodyUtility {
                 if (/^#{1,2}\s/.test(line)) {
                     break;
                 }
-                const match = line.match(/^-\s*\[x\]\s*(.+)/);
-                if (match) {
-                    checkedItems.push(match[1].trim());
+                // Track PR group context: "- #N" or "- https://..." header
+                const prHeaderMatch = line.match(/^-\s+(#\d+|https?:\/\/\S+)/);
+                if (prHeaderMatch) {
+                    currentPrKey = prHeaderMatch[1];
+                    continue;
+                }
+                const checkedMatch = line.match(/^\s{2}-\s*\[x\]\s*(.+)/);
+                if (checkedMatch && currentPrKey) {
+                    checkedItems.add(`${currentPrKey}::${checkedMatch[1].trim()}`);
                 }
             }
         }
         bodyWithChangelog += `\n\n## ${sectionTitle}`;
-        for (const item of items) {
-            bodyWithChangelog += `\n- [${checkedItems.includes(item) ? 'x' : ' '}] ${item}`;
+        for (const [pr, items] of itemsByPr) {
+            const prIdentifier = pr.number ? `#${pr.number}` : pr.html_url;
+            bodyWithChangelog += `\n- ${prIdentifier}`;
+            for (const item of items) {
+                const isChecked = checkedItems.has(`${prIdentifier}::${item}`);
+                bodyWithChangelog += `\n  - [${isChecked ? 'x' : ' '}] ${item}`;
+            }
         }
         return bodyWithChangelog;
     }
     /**
-     * Scans PR bodies for a section matching the given title and extracts all list items.
-     * Stops extraction at the next heading of equal or higher level (# or ##).
-     * Deduplicates items by exact text match.
+     * Scans PR bodies for a section matching the given title and extracts all list items
+     * grouped by their originating PR. Stops extraction at the next heading (# or ##).
+     * Items are NOT deduplicated across PRs — each PR's items are preserved independently.
      */
     extractPostReleaseChecklistItems(prsWithIssues, sectionTitle) {
-        const items = [];
+        const result = new Map();
         for (const pr of prsWithIssues.keys()) {
             const body = pr.body ?? '';
             if (!body)
                 continue;
+            const items = [];
             const lines = body.split('\n');
             let inSection = false;
             for (const line of lines) {
@@ -698,8 +717,11 @@ class BodyUtility {
                     }
                 }
             }
+            if (items.length > 0) {
+                result.set(pr, items);
+            }
         }
-        return [...new Set(items)];
+        return result;
     }
 }
 exports.BodyUtility = BodyUtility;
