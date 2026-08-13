@@ -2,7 +2,7 @@
 
 This action adds changelog to your pull request. It creates a pull request if it does not exist and fails silently if already exists, it will also update the existing pull request body.
 
-If associated pull request is a resolution to an issue then that issue will be the main item to the changelog list while the pull request will be included as its sub item.
+With `resolve-grouping: true`, a pull request that resolves an issue will have that issue as the main changelog item with the pull request nested as its sub item. By default (`false`) pull requests are listed flat.
 
 ### Auto Generated Body
 
@@ -11,18 +11,14 @@ If associated pull request is a resolution to an issue then that issue will be t
 This PR adds the new billing dashboard and fixes the login flow.
 
 ### Changes
-- [ ] #123
-  - https://github.com/acme/app/pull/45 - jdoe
-- [x] #456
-  - https://github.com/acme/app/pull/47 - msmith
+- [ ] https://github.com/acme/app/pull/45 - jdoe
+- [x] https://github.com/acme/app/pull/47 - msmith
 
 ## Features
-- [ ] #123
-  - https://github.com/acme/app/pull/45 - jdoe
+- [ ] https://github.com/acme/app/pull/45 - jdoe
 
 ## Bug Fixes
-- [x] #456
-  - https://github.com/acme/app/pull/47 - msmith
+- [x] https://github.com/acme/app/pull/47 - msmith
 
 ## Post-Release Checklist
 - #45
@@ -32,6 +28,8 @@ This PR adds the new billing dashboard and fixes the login flow.
   - [ ] Notify the team on Slack
   - [x] Run database migrations
 ```
+
+> Set `resolve-grouping: true` to group pull requests under their related issues instead (see [Linking Issues](#linking-issues)).
 
 #### With Checkbox
 
@@ -85,6 +83,8 @@ For different repository:
 ```
 Resolves enzorenz/pr-notes#1234
 ```
+
+Grouping the changelog by related issues is opt-in via the `resolve-grouping` input (default `false`). When disabled, the resolve line issue detection is skipped and the changelog lists pull requests flat instead of grouping them under their related issues.
 
 ### Inputs
 
@@ -147,6 +147,13 @@ Resolves enzorenz/pr-notes#1234
       <td align="center"><code>resolves</code></td>
       <td align="center">false</td>
       <td align="center"><code>resolves</code></td>
+    </tr>
+    <tr>
+      <td align="center">resolve-grouping</td>
+      <td align="center">Group changelog by related issues detected from the resolve line (set to false to list PRs flat)</td>
+      <td align="center"><code>false</code></td>
+      <td align="center">false</td>
+      <td align="center"><code>true</code></td>
     </tr>
     <tr>
       <td align="center">list-title</td>

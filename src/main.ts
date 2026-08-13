@@ -51,6 +51,7 @@ async function run(): Promise<void> {
       prDetail?.body ?? '',
       input.body,
       input.resolveLineKeyword,
+      input.resolveGrouping,
       input.listTitle,
       input.excludeKeywords,
       input.commitTypeGrouping,

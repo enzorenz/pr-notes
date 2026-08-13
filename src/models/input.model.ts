@@ -8,6 +8,7 @@ export class Input {
   title: string
   body: string
   resolveLineKeyword: string
+  resolveGrouping: boolean
   listTitle: string
   labels: string[]
   reviewers: string[]
@@ -26,6 +27,8 @@ export class Input {
     this.title = core.getInput('title', {required: true})
     this.body = core.getInput('body')
     this.resolveLineKeyword = core.getInput('resolve-line-keyword')
+    this.resolveGrouping =
+      (core.getInput('resolve-grouping') ?? '').toLowerCase() === 'true'
     this.listTitle = core.getInput('list-title')
     this.labels = convertInputToArray('labels')
     this.reviewers = convertInputToArray('reviewers')

@@ -26,6 +26,10 @@ inputs:
     description: 'Keyword for detecting the resolve line to retrieve related issue/link (case insensitive)'
     default: 'resolves'
     required: false 
+  resolve-grouping:
+    description: 'Group changelog by related issues detected from the resolve line (set to false to list PRs flat)'
+    default: 'false'
+    required: false
   list-title:
     description: 'Title for changes list'
     default: ''

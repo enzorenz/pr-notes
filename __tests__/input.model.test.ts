@@ -19,6 +19,7 @@ function mockGetInput(overrides: Record<string, string> = {}): void {
     reviewers: '',
     assignees: '',
     'commit-type-grouping': 'false',
+    'resolve-grouping': 'false',
     'exclude-keywords': '',
     'with-author': 'false',
     'with-checkbox': 'false'
@@ -52,6 +53,7 @@ describe('Input', () => {
 
     expect(input.draft).toBe(false)
     expect(input.commitTypeGrouping).toBe(false)
+    expect(input.resolveGrouping).toBe(false)
     expect(input.withAuthor).toBe(false)
     expect(input.withCheckbox).toBe(false)
   })
@@ -60,6 +62,7 @@ describe('Input', () => {
     mockGetInput({
       draft: 'true',
       'commit-type-grouping': 'true',
+      'resolve-grouping': 'true',
       'with-author': 'true',
       'with-checkbox': 'true'
     })
@@ -69,6 +72,7 @@ describe('Input', () => {
 
     expect(input.draft).toBe(true)
     expect(input.commitTypeGrouping).toBe(true)
+    expect(input.resolveGrouping).toBe(true)
     expect(input.withAuthor).toBe(true)
     expect(input.withCheckbox).toBe(true)
   })
