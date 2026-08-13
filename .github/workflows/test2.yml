@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: enzorenz/pr-notes@v1.3.2
+      - uses: enzorenz/pr-notes@v1.3.3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           source-branch: test-only
