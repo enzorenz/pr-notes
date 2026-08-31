@@ -695,6 +695,42 @@ describe('appendReleaseChecklist', () => {
     )
   })
 
+  it('appends author to the PR header when withAuthor is true', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(1, 'feat: x', '## Post-Release Checklist\n- Task'),
+      []
+    )
+    const result = (utility as AnyBodyUtility).appendReleaseChecklist(
+      'Existing body',
+      '',
+      prMap,
+      {title: 'Post-Release Checklist', checklist: true},
+      true
+    )
+    expect(result).toBe(
+      'Existing body\n\n## Post-Release Checklist\n- #1 - user1\n  - [ ] Task'
+    )
+  })
+
+  it('omits author from the PR header when withAuthor is false', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(1, 'feat: x', '## Post-Release Checklist\n- Task'),
+      []
+    )
+    const result = (utility as AnyBodyUtility).appendReleaseChecklist(
+      'Existing body',
+      '',
+      prMap,
+      {title: 'Post-Release Checklist', checklist: true},
+      false
+    )
+    expect(result).toBe(
+      'Existing body\n\n## Post-Release Checklist\n- #1\n  - [ ] Task'
+    )
+  })
+
   it('renders nested child items indented under their parent', () => {
     const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
     prMap.set(

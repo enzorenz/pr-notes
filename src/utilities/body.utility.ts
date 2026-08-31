@@ -180,7 +180,8 @@ export class BodyUtility {
         bodyWithChangelog,
         currentBody,
         prsWithIssues,
-        sections
+        sections,
+        withAuthor
       )
     }
 
@@ -241,7 +242,8 @@ export class BodyUtility {
       bodyWithChangelog,
       currentBody,
       prsWithIssues,
-      sections
+      sections,
+      withAuthor
     )
   }
 
@@ -507,14 +509,16 @@ export class BodyUtility {
     bodyWithChangelog: string,
     currentBody: string,
     prsWithIssues: Map<PrEntry, string[]>,
-    sections: Section[]
+    sections: Section[],
+    withAuthor: boolean
   ): string {
     for (const section of sections) {
       bodyWithChangelog = this.appendReleaseChecklist(
         bodyWithChangelog,
         currentBody,
         prsWithIssues,
-        section
+        section,
+        withAuthor
       )
     }
     return bodyWithChangelog
@@ -531,7 +535,8 @@ export class BodyUtility {
     bodyWithChangelog: string,
     currentBody: string,
     prsWithIssues: Map<PrEntry, string[]>,
-    section: Section
+    section: Section,
+    withAuthor: boolean
   ): string {
     const sectionTitle = section.title
     if (!sectionTitle) {
@@ -582,7 +587,10 @@ export class BodyUtility {
     bodyWithChangelog += `\n\n## ${sectionTitle}`
     for (const [pr, items] of itemsByPr) {
       const prIdentifier = pr.number ? `#${pr.number}` : pr.html_url
-      bodyWithChangelog += `\n- ${prIdentifier}`
+      const author = pr.user?.login
+      bodyWithChangelog += `\n- ${prIdentifier}${
+        withAuthor && author ? ` - ${author}` : ''
+      }`
       for (const item of items) {
         const indent = '  '.repeat(1 + item.depth)
         if (section.checklist && item.depth === 0) {

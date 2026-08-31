@@ -55,7 +55,7 @@ with:
 - `title` — the `## <title>` heading to scan for in merged PR bodies.
 - `checklist` — when `true`, top-level items render as checkboxes with persisted state; when omitted or `false` (or the string `"false"`), items render as plain bullets. Accepts a boolean or the strings `"true"`/`"false"`. Defaults to `false`.
 
-Nested items are preserved in all cases. Sections from `custom-sections` are combined with `post-release-checklist-title` (which is always included as a checklist section when non-empty). Duplicate titles are skipped with a warning.
+Nested items are preserved in all cases. Sections from `custom-sections` are combined with `post-release-checklist-title` (which is always included as a checklist section when non-empty). Duplicate titles are skipped with a warning. When `with-author` is enabled, each PR line also shows its author (e.g. `- #45 - jdoe`).
 
 ### Usage
 
@@ -217,7 +217,7 @@ Grouping the changelog by related issues is opt-in via the `resolve-grouping` in
     </tr>
     <tr>
       <td align="center">with-author</td>
-      <td align="center">Includes commit author in the list</td>
+      <td align="center">Includes the PR author in the changelog and checklist sections</td>
       <td align="center">false</td>
       <td align="center">false</td>
       <td align="center"><code>true</code></td>

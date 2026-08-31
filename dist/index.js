@@ -459,7 +459,7 @@ class BodyUtility {
                     bodyWithChangelog += `\n  - ${pr.html_url}${withAuthor && author ? ` - ${author}` : ''}`;
                 }
             }
-            return this.appendReleaseChecklists(bodyWithChangelog, currentBody, prsWithIssues, sections);
+            return this.appendReleaseChecklists(bodyWithChangelog, currentBody, prsWithIssues, sections, withAuthor);
         }
         const commitTypesObject = this.groupByCommitType(issuesObject);
         core.info('Rearranging commit groups...');
@@ -496,7 +496,7 @@ class BodyUtility {
                 }
             }
         }
-        return this.appendReleaseChecklists(bodyWithChangelog, currentBody, prsWithIssues, sections);
+        return this.appendReleaseChecklists(bodyWithChangelog, currentBody, prsWithIssues, sections, withAuthor);
     }
     /**
      * This function fetches all associated commits between two branches and returns their SHA values.
@@ -708,9 +708,9 @@ class BodyUtility {
      * Appends each configured section to the changelog body if items are found
      * in the scanned PRs.
      */
-    appendReleaseChecklists(bodyWithChangelog, currentBody, prsWithIssues, sections) {
+    appendReleaseChecklists(bodyWithChangelog, currentBody, prsWithIssues, sections, withAuthor) {
         for (const section of sections) {
-            bodyWithChangelog = this.appendReleaseChecklist(bodyWithChangelog, currentBody, prsWithIssues, section);
+            bodyWithChangelog = this.appendReleaseChecklist(bodyWithChangelog, currentBody, prsWithIssues, section, withAuthor);
         }
         return bodyWithChangelog;
     }
@@ -721,7 +721,7 @@ class BodyUtility {
      * items render as checkboxes and checked state persists per PR from the
      * current body; otherwise all items render as plain bullets.
      */
-    appendReleaseChecklist(bodyWithChangelog, currentBody, prsWithIssues, section) {
+    appendReleaseChecklist(bodyWithChangelog, currentBody, prsWithIssues, section, withAuthor) {
         const sectionTitle = section.title;
         if (!sectionTitle) {
             return bodyWithChangelog;
@@ -762,7 +762,8 @@ class BodyUtility {
         bodyWithChangelog += `\n\n## ${sectionTitle}`;
         for (const [pr, items] of itemsByPr) {
             const prIdentifier = pr.number ? `#${pr.number}` : pr.html_url;
-            bodyWithChangelog += `\n- ${prIdentifier}`;
+            const author = pr.user?.login;
+            bodyWithChangelog += `\n- ${prIdentifier}${withAuthor && author ? ` - ${author}` : ''}`;
             for (const item of items) {
                 const indent = '  '.repeat(1 + item.depth);
                 if (section.checklist && item.depth === 0) {
