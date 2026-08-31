@@ -103,7 +103,7 @@ async function run() {
         }
         core.endGroup();
         core.startGroup('Pull Request Processing');
-        const body = await bodyUtility.compose(input.sourceBranch, input.targetBranch, prDetail?.body ?? '', input.body, input.resolveLineKeyword, input.resolveGrouping, input.listTitle, input.excludeKeywords, input.commitTypeGrouping, input.withAuthor, input.withCheckbox, input.postReleaseChecklistTitle);
+        const body = await bodyUtility.compose(input.sourceBranch, input.targetBranch, prDetail?.body ?? '', input.body, input.resolveLineKeyword, input.resolveGrouping, input.listTitle, input.excludeKeywords, input.commitTypeGrouping, input.withAuthor, input.withCheckbox, input.sections);
         if (prDetail) {
             core.info('Updating Pull Request...');
             const pull = await prUtility.update(prDetail.number, body, input.reviewers);
@@ -201,6 +201,7 @@ class Input {
     withAuthor;
     withCheckbox;
     postReleaseChecklistTitle;
+    sections;
     constructor() {
         this.token = core.getInput('token', { required: true });
         this.sourceBranch = core.getInput('source-branch', { required: true });
@@ -223,6 +224,7 @@ class Input {
         this.withCheckbox =
             (core.getInput('with-checkbox') ?? '').toLowerCase() === 'true';
         this.postReleaseChecklistTitle = core.getInput('post-release-checklist-title');
+        this.sections = buildSections(core.getInput('custom-sections'), this.postReleaseChecklistTitle);
         core.setSecret(this.token);
     }
 }
@@ -231,6 +233,65 @@ function convertInputToArray(input, options) {
     const str = core.getInput(input, options);
     const arr = (str || null)?.split(',') ?? [];
     return arr.map(item => item.trim()).filter(item => item.length > 0);
+}
+function buildSections(customSections, postReleaseChecklistTitle) {
+    const sections = [];
+    const seenTitles = new Set();
+    const addSection = (title, checklist) => {
+        const trimmed = title.trim();
+        if (trimmed.length === 0)
+            return;
+        if (seenTitles.has(trimmed)) {
+            core.warning(`custom-sections: duplicate section title "${trimmed}" ignored.`);
+            return;
+        }
+        seenTitles.add(trimmed);
+        sections.push({ title: trimmed, checklist });
+    };
+    if (postReleaseChecklistTitle.trim().length > 0) {
+        addSection(postReleaseChecklistTitle, true);
+    }
+    if (customSections.trim().length > 0) {
+        try {
+            const parsed = JSON.parse(customSections);
+            if (!Array.isArray(parsed)) {
+                core.warning('custom-sections must be a JSON array; ignoring it.');
+                return sections;
+            }
+            for (const item of parsed) {
+                if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+                    core.warning('custom-sections: skipping entry that is not an object.');
+                    continue;
+                }
+                const title = item.title;
+                if (typeof title !== 'string' || title.trim().length === 0) {
+                    core.warning('custom-sections: skipping entry without a valid "title".');
+                    continue;
+                }
+                const checklist = parseChecklist(item.checklist);
+                addSection(title, checklist);
+            }
+        }
+        catch (error) {
+            core.warning(`Failed to parse custom-sections JSON: ${error.message}`);
+        }
+    }
+    return sections;
+}
+function parseChecklist(value) {
+    if (value === undefined)
+        return false;
+    if (typeof value === 'boolean')
+        return value;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === 'true')
+            return true;
+        if (normalized === 'false')
+            return false;
+    }
+    core.warning(`custom-sections: "checklist" should be a boolean; got ${JSON.stringify(value)}. Treating as false.`);
+    return false;
 }
 
 
@@ -324,7 +385,7 @@ class BodyUtility {
      * commit type. The changelog includes links to the pull requests and checkboxes for each item. The
      * function also takes in several parameters to customize the changelog.
      */
-    async compose(sourceBranch, targetBranch, currentBody, body, resolveLineKeyword, resolveGrouping, listTitle, excludeKeywords, commitTypeGrouping, withAuthor, withCheckbox, postReleaseChecklistTitle) {
+    async compose(sourceBranch, targetBranch, currentBody, body, resolveLineKeyword, resolveGrouping, listTitle, excludeKeywords, commitTypeGrouping, withAuthor, withCheckbox, sections) {
         core.info(`Retrieving PR links for all diffs between head ${sourceBranch} and base ${targetBranch}...`);
         let bodyWithChangelog = body ?? '';
         // Retrieves all checked items from the current body of the pull request
@@ -398,7 +459,7 @@ class BodyUtility {
                     bodyWithChangelog += `\n  - ${pr.html_url}${withAuthor && author ? ` - ${author}` : ''}`;
                 }
             }
-            return this.appendReleaseChecklist(bodyWithChangelog, currentBody, prsWithIssues, postReleaseChecklistTitle);
+            return this.appendReleaseChecklists(bodyWithChangelog, currentBody, prsWithIssues, sections);
         }
         const commitTypesObject = this.groupByCommitType(issuesObject);
         core.info('Rearranging commit groups...');
@@ -435,7 +496,7 @@ class BodyUtility {
                 }
             }
         }
-        return this.appendReleaseChecklist(bodyWithChangelog, currentBody, prsWithIssues, postReleaseChecklistTitle);
+        return this.appendReleaseChecklists(bodyWithChangelog, currentBody, prsWithIssues, sections);
     }
     /**
      * This function fetches all associated commits between two branches and returns their SHA values.
@@ -644,11 +705,24 @@ class BodyUtility {
         return [...new Map(arrayOfPRs.map(item => [item.id, item])).values()];
     }
     /**
-     * Appends a post-release checklist section to the changelog body if items are found
-     * in the scanned PRs. Items are grouped under their originating PR.
-     * Checked state is persisted independently per PR instance from the current body.
+     * Appends each configured section to the changelog body if items are found
+     * in the scanned PRs.
      */
-    appendReleaseChecklist(bodyWithChangelog, currentBody, prsWithIssues, sectionTitle) {
+    appendReleaseChecklists(bodyWithChangelog, currentBody, prsWithIssues, sections) {
+        for (const section of sections) {
+            bodyWithChangelog = this.appendReleaseChecklist(bodyWithChangelog, currentBody, prsWithIssues, section);
+        }
+        return bodyWithChangelog;
+    }
+    /**
+     * Appends a single section to the changelog body if items are found in the
+     * scanned PRs. Items are grouped under their originating PR and nested items
+     * preserve their indentation. When `section.checklist` is true, top-level
+     * items render as checkboxes and checked state persists per PR from the
+     * current body; otherwise all items render as plain bullets.
+     */
+    appendReleaseChecklist(bodyWithChangelog, currentBody, prsWithIssues, section) {
+        const sectionTitle = section.title;
         if (!sectionTitle) {
             return bodyWithChangelog;
         }
@@ -656,31 +730,32 @@ class BodyUtility {
         if (itemsByPr.size === 0) {
             return bodyWithChangelog;
         }
-        // Scan current body's release checklist section for checked items scoped by PR.
-        // Key format: "prIdentifier::itemText" for independent per-PR checkbox state.
-        // Only top-level (parent) items carry checkboxes; nested items are plain bullets.
+        // Scan current body's checklist section for checked items scoped by PR.
+        // Only relevant when the section renders as a checklist.
         const checkedItems = new Set();
-        const currentLines = currentBody.split('\n');
-        let inSection = false;
-        let currentPrKey = '';
-        for (const line of currentLines) {
-            if (line.trim() === `## ${sectionTitle}`) {
-                inSection = true;
-                continue;
-            }
-            if (inSection) {
-                if (/^#{1,2}\s/.test(line)) {
-                    break;
-                }
-                // Track PR group context: "- #N" or "- https://..." header
-                const prHeaderMatch = line.match(/^-\s+(#\d+|https?:\/\/\S+)/);
-                if (prHeaderMatch) {
-                    currentPrKey = prHeaderMatch[1];
+        if (section.checklist) {
+            const currentLines = currentBody.split('\n');
+            let inSection = false;
+            let currentPrKey = '';
+            for (const line of currentLines) {
+                if (line.trim() === `## ${sectionTitle}`) {
+                    inSection = true;
                     continue;
                 }
-                const checkedMatch = line.match(/^\s{2}-\s*\[x\]\s*(.+)/);
-                if (checkedMatch && currentPrKey) {
-                    checkedItems.add(this.checklistItemKey(currentPrKey, checkedMatch[1].trim()));
+                if (inSection) {
+                    if (/^#{1,6}\s/.test(line)) {
+                        break;
+                    }
+                    // Track PR group context: "- #N" or "- https://..." header
+                    const prHeaderMatch = line.match(/^-\s+(#\d+|https?:\/\/\S+)/);
+                    if (prHeaderMatch) {
+                        currentPrKey = prHeaderMatch[1];
+                        continue;
+                    }
+                    const checkedMatch = line.match(/^\s{2}-\s*\[x\]\s*(.+)/);
+                    if (checkedMatch && currentPrKey) {
+                        checkedItems.add(this.checklistItemKey(currentPrKey, checkedMatch[1].trim()));
+                    }
                 }
             }
         }
@@ -690,7 +765,7 @@ class BodyUtility {
             bodyWithChangelog += `\n- ${prIdentifier}`;
             for (const item of items) {
                 const indent = '  '.repeat(1 + item.depth);
-                if (item.depth === 0) {
+                if (section.checklist && item.depth === 0) {
                     const isChecked = checkedItems.has(this.checklistItemKey(prIdentifier, item.text));
                     bodyWithChangelog += `\n${indent}- [${isChecked ? 'x' : ' '}] ${item.text}`;
                 }
@@ -722,7 +797,7 @@ class BodyUtility {
                     continue;
                 }
                 if (inSection) {
-                    if (/^#{1,2}\s/.test(line)) {
+                    if (/^#{1,6}\s/.test(line)) {
                         break;
                     }
                     // Extract list items: "- item" or "- [x] item" or "- [ ] item"

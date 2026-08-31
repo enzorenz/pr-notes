@@ -367,6 +367,23 @@ describe('extractPostReleaseChecklistItems', () => {
     expect(getItemsForPr(result, 1)).toEqual([{text: 'Item 1', depth: 0}])
   })
 
+  it('stops at ### heading as well', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: something',
+        '## Post-Release Checklist\n- Item 1\n### Sub Section\n- Should not appear'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).extractPostReleaseChecklistItems(
+      prMap,
+      'Post-Release Checklist'
+    )
+    expect(getItemsForPr(result, 1)).toEqual([{text: 'Item 1', depth: 0}])
+  })
+
   it('ignores PR bodies without the section', () => {
     const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
     prMap.set(
@@ -491,7 +508,7 @@ describe('appendReleaseChecklist', () => {
       'Existing body',
       '',
       prMap,
-      ''
+      {title: '', checklist: true}
     )
     expect(result).toBe('Existing body')
   })
@@ -503,7 +520,7 @@ describe('appendReleaseChecklist', () => {
       'Existing body',
       '',
       prMap,
-      'Post-Release Checklist'
+      {title: 'Post-Release Checklist', checklist: true}
     )
     expect(result).toBe('Existing body')
   })
@@ -522,7 +539,7 @@ describe('appendReleaseChecklist', () => {
       'Existing body',
       '',
       prMap,
-      'Post-Release Checklist'
+      {title: 'Post-Release Checklist', checklist: true}
     )
     expect(result).toBe(
       'Existing body\n\n## Post-Release Checklist\n- #1\n  - [ ] Notify team\n  - [ ] Deploy'
@@ -543,7 +560,7 @@ describe('appendReleaseChecklist', () => {
       'Existing body',
       '',
       prMap,
-      'Post-Release Checklist'
+      {title: 'Post-Release Checklist', checklist: true}
     )
     expect(result).toBe(
       'Existing body\n\n## Post-Release Checklist\n- #1\n  - [ ] Task A\n- #2\n  - [ ] Task B'
@@ -572,7 +589,7 @@ describe('appendReleaseChecklist', () => {
       'Existing body',
       '',
       prMap,
-      'Post-Release Checklist'
+      {title: 'Post-Release Checklist', checklist: true}
     )
     expect(result).toBe(
       'Existing body\n\n## Post-Release Checklist\n- #1\n  - [ ] Notify team\n- #2\n  - [ ] Notify team'
@@ -604,7 +621,7 @@ describe('appendReleaseChecklist', () => {
       'Existing body',
       currentBody,
       prMap,
-      'Post-Release Checklist'
+      {title: 'Post-Release Checklist', checklist: true}
     )
     expect(result).toBe(
       'Existing body\n\n## Post-Release Checklist\n- #1\n  - [ ] Notify team\n- #2\n  - [x] Notify team'
@@ -627,7 +644,7 @@ describe('appendReleaseChecklist', () => {
       'Existing body',
       currentBody,
       prMap,
-      'Post-Release Checklist'
+      {title: 'Post-Release Checklist', checklist: true}
     )
     expect(result).toBe(
       'Existing body\n\n## Post-Release Checklist\n- #1\n  - [x] Notify team\n  - [ ] Deploy'
@@ -651,7 +668,7 @@ describe('appendReleaseChecklist', () => {
       'Existing body',
       currentBody,
       prMap,
-      'Post-Release Checklist'
+      {title: 'Post-Release Checklist', checklist: true}
     )
     expect(result).toBe(
       'Existing body\n\n## Post-Release Checklist\n- #1\n  - [ ] Release item'
@@ -671,7 +688,7 @@ describe('appendReleaseChecklist', () => {
       'Existing body',
       '',
       prMap,
-      'Post-Release Checklist'
+      {title: 'Post-Release Checklist', checklist: true}
     )
     expect(result).toBe(
       'Existing body\n\n## Post-Release Checklist\n- https://github.com/owner/repo/pull/1\n  - [ ] Task'
@@ -692,7 +709,7 @@ describe('appendReleaseChecklist', () => {
       'Existing body',
       '',
       prMap,
-      'Post-Release Checklist'
+      {title: 'Post-Release Checklist', checklist: true}
     )
     expect(result).toBe(
       'Existing body\n\n## Post-Release Checklist\n- #1\n  - [ ] Notify the team\n    - Send email\n    - Send Slack\n  - [ ] Update docs'
@@ -715,10 +732,55 @@ describe('appendReleaseChecklist', () => {
       'Existing body',
       currentBody,
       prMap,
-      'Post-Release Checklist'
+      {title: 'Post-Release Checklist', checklist: true}
     )
     expect(result).toBe(
       'Existing body\n\n## Post-Release Checklist\n- #1\n  - [x] Notify the team\n    - Send email\n    - Send Slack'
+    )
+  })
+
+  it('renders plain bullets (no checkboxes) when checklist is false', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: x',
+        '## Release Notes\n- Notify team\n  - Send email'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).appendReleaseChecklist(
+      'Existing body',
+      '',
+      prMap,
+      {title: 'Release Notes', checklist: false}
+    )
+    expect(result).toBe(
+      'Existing body\n\n## Release Notes\n- #1\n  - Notify team\n    - Send email'
+    )
+  })
+
+  it('renders multiple sections in order via appendReleaseChecklists', () => {
+    const prMap = new Map<PrEntryWithRelatedIssues, string[]>()
+    prMap.set(
+      makePrEntryWithBody(
+        1,
+        'feat: x',
+        '## My Checklist\n- Do thing\n## Release Notes\n- Note A\n  - Note B'
+      ),
+      []
+    )
+    const result = (utility as AnyBodyUtility).appendReleaseChecklists(
+      'Existing body',
+      '',
+      prMap,
+      [
+        {title: 'My Checklist', checklist: true},
+        {title: 'Release Notes', checklist: false}
+      ]
+    )
+    expect(result).toBe(
+      'Existing body\n\n## My Checklist\n- #1\n  - [ ] Do thing\n\n## Release Notes\n- #1\n  - Note A\n    - Note B'
     )
   })
 })

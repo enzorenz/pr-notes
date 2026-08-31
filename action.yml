@@ -62,6 +62,10 @@ inputs:
     description: 'Heading title for aggregating post-release checklist items from merged PRs (set to empty to disable)'
     default: 'Post-Release Checklist'
     required: false
+  custom-sections:
+    description: 'JSON array of custom sections to aggregate from merged PRs, e.g. [{"title":"My Checklist","checklist":true}]'
+    default: ''
+    required: false
 runs:
   using: 'node24'
   main: 'dist/index.js'

@@ -18,3 +18,8 @@ export interface ChecklistItem {
   text: string
   depth: number
 }
+
+export interface Section {
+  title: string
+  checklist: boolean
+}

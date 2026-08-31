@@ -136,4 +136,88 @@ describe('Input', () => {
 
     expect(input.excludeKeywords).toEqual(['wip', 'draft', 'do-not-merge'])
   })
+
+  it('returns empty sections by default', () => {
+    mockGetInput()
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const {Input} = require('../src/models/input.model')
+    const input = new Input()
+
+    expect(input.sections).toEqual([])
+  })
+
+  it('parses custom-sections JSON array', () => {
+    mockGetInput({
+      'custom-sections':
+        '[{"title":"My Checklist","checklist":true},{"title":"Release Notes"}]'
+    })
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const {Input} = require('../src/models/input.model')
+    const input = new Input()
+
+    expect(input.sections).toEqual([
+      {title: 'My Checklist', checklist: true},
+      {title: 'Release Notes', checklist: false}
+    ])
+  })
+
+  it('includes post-release-checklist-title when custom-sections is empty', () => {
+    mockGetInput({'post-release-checklist-title': 'Post-Release Checklist'})
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const {Input} = require('../src/models/input.model')
+    const input = new Input()
+
+    expect(input.sections).toEqual([
+      {title: 'Post-Release Checklist', checklist: true}
+    ])
+  })
+
+  it('returns empty sections on invalid custom-sections JSON', () => {
+    mockGetInput({'custom-sections': 'not-json'})
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const {Input} = require('../src/models/input.model')
+    const input = new Input()
+
+    expect(input.sections).toEqual([])
+  })
+
+  it('combines custom-sections with post-release-checklist-title', () => {
+    mockGetInput({
+      'post-release-checklist-title': 'Post-Release Checklist',
+      'custom-sections': '[{"title":"My Checklist","checklist":true}]'
+    })
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const {Input} = require('../src/models/input.model')
+    const input = new Input()
+
+    expect(input.sections).toEqual([
+      {title: 'Post-Release Checklist', checklist: true},
+      {title: 'My Checklist', checklist: true}
+    ])
+  })
+
+  it('treats checklist string "true" as true', () => {
+    mockGetInput({
+      'custom-sections': '[{"title":"My Checklist","checklist":"true"}]'
+    })
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const {Input} = require('../src/models/input.model')
+    const input = new Input()
+
+    expect(input.sections).toEqual([{title: 'My Checklist', checklist: true}])
+  })
+
+  it('warns and skips invalid custom-sections entries', () => {
+    mockGetInput({
+      'custom-sections': '[{"title":"Good","checklist":true},{"no-title":true}]'
+    })
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const {Input} = require('../src/models/input.model')
+    const input = new Input()
+
+    expect(input.sections).toEqual([{title: 'Good', checklist: true}])
+    expect(mockedCore.warning).toHaveBeenCalledWith(
+      expect.stringContaining('without a valid "title"')
+    )
+  })
 })

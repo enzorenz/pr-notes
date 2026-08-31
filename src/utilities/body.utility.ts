@@ -5,7 +5,8 @@ import {
   ChecklistItem,
   Octokit,
   PrEntry,
-  PrEntryWithRelatedIssues
+  PrEntryWithRelatedIssues,
+  Section
 } from '../types'
 import {COMMIT_TYPES} from '../constants'
 
@@ -69,7 +70,7 @@ export class BodyUtility {
     commitTypeGrouping: boolean,
     withAuthor: boolean,
     withCheckbox: boolean,
-    postReleaseChecklistTitle: string
+    sections: Section[]
   ): Promise<string> {
     core.info(
       `Retrieving PR links for all diffs between head ${sourceBranch} and base ${targetBranch}...`
@@ -175,11 +176,11 @@ export class BodyUtility {
         }
       }
 
-      return this.appendReleaseChecklist(
+      return this.appendReleaseChecklists(
         bodyWithChangelog,
         currentBody,
         prsWithIssues,
-        postReleaseChecklistTitle
+        sections
       )
     }
 
@@ -236,11 +237,11 @@ export class BodyUtility {
       }
     }
 
-    return this.appendReleaseChecklist(
+    return this.appendReleaseChecklists(
       bodyWithChangelog,
       currentBody,
       prsWithIssues,
-      postReleaseChecklistTitle
+      sections
     )
   }
 
@@ -499,16 +500,40 @@ export class BodyUtility {
   }
 
   /**
-   * Appends a post-release checklist section to the changelog body if items are found
-   * in the scanned PRs. Items are grouped under their originating PR.
-   * Checked state is persisted independently per PR instance from the current body.
+   * Appends each configured section to the changelog body if items are found
+   * in the scanned PRs.
+   */
+  private appendReleaseChecklists(
+    bodyWithChangelog: string,
+    currentBody: string,
+    prsWithIssues: Map<PrEntry, string[]>,
+    sections: Section[]
+  ): string {
+    for (const section of sections) {
+      bodyWithChangelog = this.appendReleaseChecklist(
+        bodyWithChangelog,
+        currentBody,
+        prsWithIssues,
+        section
+      )
+    }
+    return bodyWithChangelog
+  }
+
+  /**
+   * Appends a single section to the changelog body if items are found in the
+   * scanned PRs. Items are grouped under their originating PR and nested items
+   * preserve their indentation. When `section.checklist` is true, top-level
+   * items render as checkboxes and checked state persists per PR from the
+   * current body; otherwise all items render as plain bullets.
    */
   private appendReleaseChecklist(
     bodyWithChangelog: string,
     currentBody: string,
     prsWithIssues: Map<PrEntry, string[]>,
-    sectionTitle: string
+    section: Section
   ): string {
+    const sectionTitle = section.title
     if (!sectionTitle) {
       return bodyWithChangelog
     }
@@ -522,33 +547,34 @@ export class BodyUtility {
       return bodyWithChangelog
     }
 
-    // Scan current body's release checklist section for checked items scoped by PR.
-    // Key format: "prIdentifier::itemText" for independent per-PR checkbox state.
-    // Only top-level (parent) items carry checkboxes; nested items are plain bullets.
+    // Scan current body's checklist section for checked items scoped by PR.
+    // Only relevant when the section renders as a checklist.
     const checkedItems = new Set<string>()
-    const currentLines = currentBody.split('\n')
-    let inSection = false
-    let currentPrKey = ''
-    for (const line of currentLines) {
-      if (line.trim() === `## ${sectionTitle}`) {
-        inSection = true
-        continue
-      }
-      if (inSection) {
-        if (/^#{1,2}\s/.test(line)) {
-          break
-        }
-        // Track PR group context: "- #N" or "- https://..." header
-        const prHeaderMatch = line.match(/^-\s+(#\d+|https?:\/\/\S+)/)
-        if (prHeaderMatch) {
-          currentPrKey = prHeaderMatch[1]
+    if (section.checklist) {
+      const currentLines = currentBody.split('\n')
+      let inSection = false
+      let currentPrKey = ''
+      for (const line of currentLines) {
+        if (line.trim() === `## ${sectionTitle}`) {
+          inSection = true
           continue
         }
-        const checkedMatch = line.match(/^\s{2}-\s*\[x\]\s*(.+)/)
-        if (checkedMatch && currentPrKey) {
-          checkedItems.add(
-            this.checklistItemKey(currentPrKey, checkedMatch[1].trim())
-          )
+        if (inSection) {
+          if (/^#{1,6}\s/.test(line)) {
+            break
+          }
+          // Track PR group context: "- #N" or "- https://..." header
+          const prHeaderMatch = line.match(/^-\s+(#\d+|https?:\/\/\S+)/)
+          if (prHeaderMatch) {
+            currentPrKey = prHeaderMatch[1]
+            continue
+          }
+          const checkedMatch = line.match(/^\s{2}-\s*\[x\]\s*(.+)/)
+          if (checkedMatch && currentPrKey) {
+            checkedItems.add(
+              this.checklistItemKey(currentPrKey, checkedMatch[1].trim())
+            )
+          }
         }
       }
     }
@@ -559,7 +585,7 @@ export class BodyUtility {
       bodyWithChangelog += `\n- ${prIdentifier}`
       for (const item of items) {
         const indent = '  '.repeat(1 + item.depth)
-        if (item.depth === 0) {
+        if (section.checklist && item.depth === 0) {
           const isChecked = checkedItems.has(
             this.checklistItemKey(prIdentifier, item.text)
           )
@@ -598,7 +624,7 @@ export class BodyUtility {
           continue
         }
         if (inSection) {
-          if (/^#{1,2}\s/.test(line)) {
+          if (/^#{1,6}\s/.test(line)) {
             break
           }
           // Extract list items: "- item" or "- [x] item" or "- [ ] item"

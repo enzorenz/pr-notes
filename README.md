@@ -37,7 +37,25 @@ It also supports converting the changelog to a checklist. It can retain items th
 
 #### Post-Release Checklist
 
-Add a `## Post-Release Checklist` section to any merged PR body with list items. The action aggregates them into a grouped checklist at the bottom of the generated description — each PR's items are nested under its PR number, and checkbox state persists independently per PR instance. Customize the section title with the `post-release-checklist-title` input (set to empty to disable).
+Add a `## Post-Release Checklist` section to any merged PR body with list items. The action aggregates them into a grouped checklist at the bottom of the generated description — each PR's items are nested under its PR number, and checkbox state persists independently per PR instance. Nested list items keep their indentation; only top-level items carry checkboxes. Customize the section title with the `post-release-checklist-title` input (set to empty to disable).
+
+#### Custom Sections
+
+Use the `custom-sections` input to aggregate multiple sections, each with its own title and an optional `checklist` flag. It accepts a JSON array of `{"title": string, "checklist": boolean}` objects:
+
+```yaml
+with:
+  custom-sections: |
+    [
+      {"title": "My Own Checklist", "checklist": true},
+      {"title": "Release Notes"}
+    ]
+```
+
+- `title` — the `## <title>` heading to scan for in merged PR bodies.
+- `checklist` — when `true`, top-level items render as checkboxes with persisted state; when omitted or `false` (or the string `"false"`), items render as plain bullets. Accepts a boolean or the strings `"true"`/`"false"`. Defaults to `false`.
+
+Nested items are preserved in all cases. Sections from `custom-sections` are combined with `post-release-checklist-title` (which is always included as a checklist section when non-empty). Duplicate titles are skipped with a warning.
 
 ### Usage
 
@@ -217,6 +235,13 @@ Grouping the changelog by related issues is opt-in via the `resolve-grouping` in
       <td align="center"><code>Post-Release Checklist</code></td>
       <td align="center">false</td>
       <td align="center"><code>My Checklist</code></td>
+    </tr>
+    <tr>
+      <td align="center">custom-sections</td>
+      <td align="center">JSON array of custom sections to aggregate from merged PRs, e.g. <code>[{"title":"My Checklist","checklist":true}]</code></td>
+      <td align="center"><code></code></td>
+      <td align="center">false</td>
+      <td align="center"><code>[{"title":"My Checklist","checklist":true}]</code></td>
     </tr>
   </tbody>
 </table>
