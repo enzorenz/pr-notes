@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: enzorenz/pr-notes@v1.3.4
+      - uses: enzorenz/pr-notes@v1.4.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           source-branch: test-only
@@ -20,3 +20,7 @@ jobs:
           commit-type-grouping: true
           with-author: true
           with-checkbox: true
+          custom-sections: |
+            [
+              {"title": "Custom Section"}
+            ]
