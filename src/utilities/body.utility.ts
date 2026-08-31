@@ -1,7 +1,12 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
-import {Octokit, PrEntry, PrEntryWithRelatedIssues} from '../types'
+import {
+  ChecklistItem,
+  Octokit,
+  PrEntry,
+  PrEntryWithRelatedIssues
+} from '../types'
 import {COMMIT_TYPES} from '../constants'
 
 const urlRegex =
@@ -508,22 +513,18 @@ export class BodyUtility {
       return bodyWithChangelog
     }
 
-    const prItems: string[] = []
     const itemsByPr = this.extractPostReleaseChecklistItems(
       prsWithIssues,
       sectionTitle
     )
 
-    for (const [, items] of itemsByPr) {
-      prItems.push(...items)
-    }
-
-    if (prItems.length === 0) {
+    if (itemsByPr.size === 0) {
       return bodyWithChangelog
     }
 
     // Scan current body's release checklist section for checked items scoped by PR.
     // Key format: "prIdentifier::itemText" for independent per-PR checkbox state.
+    // Only top-level (parent) items carry checkboxes; nested items are plain bullets.
     const checkedItems = new Set<string>()
     const currentLines = currentBody.split('\n')
     let inSection = false
@@ -545,7 +546,9 @@ export class BodyUtility {
         }
         const checkedMatch = line.match(/^\s{2}-\s*\[x\]\s*(.+)/)
         if (checkedMatch && currentPrKey) {
-          checkedItems.add(`${currentPrKey}::${checkedMatch[1].trim()}`)
+          checkedItems.add(
+            this.checklistItemKey(currentPrKey, checkedMatch[1].trim())
+          )
         }
       }
     }
@@ -555,8 +558,15 @@ export class BodyUtility {
       const prIdentifier = pr.number ? `#${pr.number}` : pr.html_url
       bodyWithChangelog += `\n- ${prIdentifier}`
       for (const item of items) {
-        const isChecked = checkedItems.has(`${prIdentifier}::${item}`)
-        bodyWithChangelog += `\n  - [${isChecked ? 'x' : ' '}] ${item}`
+        const indent = '  '.repeat(1 + item.depth)
+        if (item.depth === 0) {
+          const isChecked = checkedItems.has(
+            this.checklistItemKey(prIdentifier, item.text)
+          )
+          bodyWithChangelog += `\n${indent}- [${isChecked ? 'x' : ' '}] ${item.text}`
+        } else {
+          bodyWithChangelog += `\n${indent}- ${item.text}`
+        }
       }
     }
 
@@ -567,18 +577,19 @@ export class BodyUtility {
    * Scans PR bodies for a section matching the given title and extracts all list items
    * grouped by their originating PR. Stops extraction at the next heading (# or ##).
    * Items are NOT deduplicated across PRs — each PR's items are preserved independently.
+   * Nested list items keep their nesting via the `depth` field.
    */
   private extractPostReleaseChecklistItems(
     prsWithIssues: Map<PrEntry, string[]>,
     sectionTitle: string
-  ): Map<PrEntry, string[]> {
-    const result = new Map<PrEntry, string[]>()
+  ): Map<PrEntry, ChecklistItem[]> {
+    const result = new Map<PrEntry, ChecklistItem[]>()
 
     for (const pr of prsWithIssues.keys()) {
       const body = pr.body ?? ''
       if (!body) continue
 
-      const items: string[] = []
+      const rawItems: {indent: number; text: string}[] = []
       const lines = body.split('\n')
       let inSection = false
       for (const line of lines) {
@@ -591,18 +602,33 @@ export class BodyUtility {
             break
           }
           // Extract list items: "- item" or "- [x] item" or "- [ ] item"
-          const match = line.match(/^\s*-\s+(?:\[[ x]\]\s+)?(.+)/)
+          const match = line.match(/^(\s*)-\s+(?:\[[ x]\]\s+)?(.+)/)
           if (match) {
-            items.push(match[1].trim())
+            rawItems.push({indent: match[1].length, text: match[2].trim()})
           }
         }
       }
 
-      if (items.length > 0) {
-        result.set(pr, items)
+      if (rawItems.length === 0) {
+        continue
       }
+
+      const baseIndent = Math.min(...rawItems.map(item => item.indent))
+      const items = rawItems.map(item => ({
+        text: item.text,
+        depth: Math.floor((item.indent - baseIndent) / 2)
+      }))
+
+      result.set(pr, items)
     }
 
     return result
+  }
+
+  /**
+   * Builds a stable key for a checklist item's checked state, scoped by PR.
+   */
+  private checklistItemKey(prIdentifier: string, text: string): string {
+    return `${prIdentifier}::${text}`
   }
 }

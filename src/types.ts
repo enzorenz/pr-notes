@@ -13,3 +13,8 @@ export type PrEntryWithRelatedIssues =
   components['schemas']['pull-request-simple'] & {
     relatedIssues?: string[]
   }
+
+export interface ChecklistItem {
+  text: string
+  depth: number
+}
